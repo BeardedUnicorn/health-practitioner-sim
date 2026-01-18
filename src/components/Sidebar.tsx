@@ -34,10 +34,9 @@ export function Sidebar({
       
       <button 
         onClick={onToggleToolkit} 
-        className="btn-primary"
-        style={{ marginTop: '0.5rem' }}
+        className={showToolkit ? "btn-secondary" : "btn-primary"}
       >
-        {showToolkit ? '✖️ Close Toolkit' : '🩺 Assessment Toolkit'}
+        {showToolkit ? '✕ Close Toolkit' : '🩺 Assessment Toolkit'}
       </button>
 
       {showToolkit && (
@@ -62,9 +61,8 @@ export function Sidebar({
       <button 
         onClick={onToggleAnswer} 
         className="btn-secondary"
-        style={{ marginTop: '1rem' }}
       >
-        {showAnswer ? '🙈 Hide Answer' : '👁️ Show Answer'}
+        {showAnswer ? '🙈 Hide Answer' : '👁️ Reveal Answer'}
       </button>
       
       {showAnswer && (

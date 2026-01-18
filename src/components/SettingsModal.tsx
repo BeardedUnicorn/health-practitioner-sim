@@ -11,13 +11,13 @@ export function SettingsModal({ config, onChange, onClose }: SettingsModalProps)
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal-content" onClick={(e) => e.stopPropagation()}>
         <div className="modal-header">
-          <h2>⚙️ Settings</h2>
+          <h2>⚙️ API Settings</h2>
           <button className="modal-close" onClick={onClose}>×</button>
         </div>
         
         <div className="modal-body">
           <div className="form-group">
-            <label>API URL:</label>
+            <label>API URL</label>
             <input
               type="text"
               value={config.apiUrl}
@@ -26,7 +26,7 @@ export function SettingsModal({ config, onChange, onClose }: SettingsModalProps)
             />
           </div>
           <div className="form-group">
-            <label>API Key (optional):</label>
+            <label>API Key (optional)</label>
             <input
               type="password"
               value={config.apiKey}
@@ -35,19 +35,22 @@ export function SettingsModal({ config, onChange, onClose }: SettingsModalProps)
             />
           </div>
           <div className="form-group">
-            <label>Model Name:</label>
+            <label>Model Name</label>
             <input
               type="text"
               value={config.modelName}
               onChange={(e) => onChange({ ...config, modelName: e.target.value })}
-              placeholder="local-model"
+              placeholder="Enter model name"
             />
           </div>
         </div>
         
         <div className="modal-footer">
+          <button onClick={onClose} className="btn-secondary">
+            Cancel
+          </button>
           <button onClick={onClose} className="btn-primary">
-            Done
+            Save Changes
           </button>
         </div>
       </div>

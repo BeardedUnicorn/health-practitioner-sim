@@ -26,7 +26,7 @@ export function ProfessionSelect({ onSelect, onOpenSettings }: ProfessionSelectP
             className="profession-card"
             onClick={() => onSelect(config.id)}
           >
-            <div className="profession-emoji">{config.emoji}</div>
+            <span className="profession-emoji">{config.emoji}</span>
             <h2>{config.name}</h2>
             <p>{config.description}</p>
           </button>

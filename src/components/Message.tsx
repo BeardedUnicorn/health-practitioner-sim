@@ -30,7 +30,7 @@ export function TypingIndicator({ patientLabel, patientEmoji }: TypingIndicatorP
   return (
     <div className="message assistant">
       <div className="message-label">{patientEmoji} {patientLabel}</div>
-      <div className="message-content typing">Thinking...</div>
+      <div className="message-content typing">Thinking</div>
     </div>
   );
 }
