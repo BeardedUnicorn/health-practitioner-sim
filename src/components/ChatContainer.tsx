@@ -1,16 +1,19 @@
 import { useRef, useEffect } from 'react';
-import { PatientSession, ProfessionConfig } from '../types';
+import { PatientSession, ProfessionConfig, Profession } from '../types';
 import { Message, TypingIndicator } from './Message';
 
 interface ChatContainerProps {
   session: PatientSession;
+  profession: Profession;
   professionConfig: ProfessionConfig;
   currentMessage: string;
   isLoading: boolean;
   feedback: { correct: boolean; message: string } | null;
+  showCoach: boolean;
   onMessageChange: (message: string) => void;
   onSend: () => void;
   onNewSession: () => void;
+  onToggleCoach: () => void;
 }
 
 export function ChatContainer({
@@ -19,9 +22,11 @@ export function ChatContainer({
   currentMessage,
   isLoading,
   feedback,
+  showCoach,
   onMessageChange,
   onSend,
-  onNewSession
+  onNewSession,
+  onToggleCoach
 }: ChatContainerProps) {
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
 
@@ -74,6 +79,13 @@ export function ChatContainer({
       )}
 
       <div className="input-container">
+        <button 
+          onClick={onToggleCoach} 
+          className={`btn-coach ${showCoach ? 'active' : ''}`}
+          title="Toggle Coach"
+        >
+          🎓
+        </button>
         <input
           type="text"
           value={currentMessage}

@@ -6,7 +6,8 @@ import { ProfessionSelect } from './components/ProfessionSelect';
 import { SettingsModal } from './components/SettingsModal';
 import { SessionStart } from './components/SessionStart';
 import { ChatContainer } from './components/ChatContainer';
-import { Sidebar } from './components/Sidebar';
+import { Toolkit } from './components/Toolkit';
+import { Coach } from './components/Coach';
 
 type AppState = 'profession-select' | 'ready' | 'session';
 
@@ -26,7 +27,9 @@ function App() {
   const [feedback, setFeedback] = useState<{ correct: boolean; message: string } | null>(null);
   const [showAnswer, setShowAnswer] = useState(false);
   const [showToolkit, setShowToolkit] = useState(false);
+  const [showCoach, setShowCoach] = useState(false);
   const [performingAssessment, setPerformingAssessment] = useState(false);
+  const [coachWidth, setCoachWidth] = useState(350);
 
   const professionConfig = profession ? professionConfigs[profession] : null;
 
@@ -40,6 +43,7 @@ function App() {
     setFeedback(null);
     setShowAnswer(false);
     setShowToolkit(false);
+    setShowCoach(false);
     setProfession(null);
     setAppState('profession-select');
   };
@@ -83,7 +87,7 @@ function App() {
       
       const systemPrompt = professionConfig.getSystemPrompt(setupContent);
 
-      const initialGreeting = profession === 'psychologist' 
+      const initialGreeting = profession === 'psychologist' || profession === 'therapist'
         ? "Hi... thanks for seeing me. I'm not really sure where to start..."
         : "Hello, I'm not feeling well. I think I need help...";
 
@@ -240,8 +244,16 @@ function App() {
     setFeedback(null);
     setShowAnswer(false);
     setShowToolkit(false);
+    setShowCoach(false);
     setAppState('ready');
   };
+
+  // Get last 5 messages for coach context
+  const recentConversation = session ? session.conversationHistory
+    .filter(msg => msg.role !== 'system')
+    .slice(-5)
+    .map(msg => `${msg.role === 'user' ? professionConfig?.userLabel : professionConfig?.patientLabel}: ${msg.content}`)
+    .join('\n') : '';
 
   return (
     <div className="app">
@@ -290,6 +302,25 @@ function App() {
           <div className="header">
             <h1>{professionConfig.emoji} {professionConfig.title}</h1>
             <div className="header-buttons">
+              <button 
+                onClick={startNewSession} 
+                className="btn-secondary" 
+                disabled={isLoading}
+              >
+                🔄 New {professionConfig.patientLabel}
+              </button>
+              <button 
+                onClick={() => setShowToolkit(!showToolkit)} 
+                className={showToolkit ? "btn-secondary active" : "btn-secondary"}
+              >
+                🩺 Assessment Toolkit
+              </button>
+              <button 
+                onClick={() => setShowAnswer(!showAnswer)} 
+                className={showAnswer ? "btn-secondary active" : "btn-secondary"}
+              >
+                {showAnswer ? '🙈 Hide Answer' : '👁️ Reveal Answer'}
+              </button>
               <button onClick={() => setShowSettings(true)} className="btn-secondary">
                 ⚙️ Settings
               </button>
@@ -299,30 +330,78 @@ function App() {
             </div>
           </div>
 
+          {showAnswer && (
+            <div className="answer-banner">
+              <strong>⚠️ Answer:</strong> {session.diagnosis}
+            </div>
+          )}
+
           <div className="session-container">
+            {showToolkit && (
+              <div className="side-panel toolkit-panel">
+                <div className="side-panel-header">
+                  <h3>🩺 Assessment Tools</h3>
+                  <button onClick={() => setShowToolkit(false)} className="panel-close">×</button>
+                </div>
+                <div className="side-panel-content">
+                  <Toolkit
+                    sections={professionConfig.toolkit}
+                    isLoading={performingAssessment}
+                    onAssessment={performAssessment}
+                  />
+                </div>
+              </div>
+            )}
+
             <ChatContainer
               session={session}
+              profession={profession!}
               professionConfig={professionConfig}
               currentMessage={currentMessage}
               isLoading={isLoading}
               feedback={feedback}
+              showCoach={showCoach}
               onMessageChange={setCurrentMessage}
               onSend={sendMessage}
               onNewSession={startNewSession}
+              onToggleCoach={() => setShowCoach(!showCoach)}
             />
 
-            <Sidebar
-              session={session}
-              professionConfig={professionConfig}
-              isLoading={isLoading}
-              showToolkit={showToolkit}
-              showAnswer={showAnswer}
-              performingAssessment={performingAssessment}
-              onNewSession={startNewSession}
-              onToggleToolkit={() => setShowToolkit(!showToolkit)}
-              onToggleAnswer={() => setShowAnswer(!showAnswer)}
-              onAssessment={performAssessment}
-            />
+            {showCoach && (
+              <>
+                <div 
+                  className="resize-handle"
+                  onMouseDown={(e) => {
+                    e.preventDefault();
+                    const startX = e.clientX;
+                    const startWidth = coachWidth;
+
+                    const handleMouseMove = (e: MouseEvent) => {
+                      const delta = startX - e.clientX;
+                      const newWidth = Math.max(300, Math.min(600, startWidth + delta));
+                      setCoachWidth(newWidth);
+                    };
+
+                    const handleMouseUp = () => {
+                      document.removeEventListener('mousemove', handleMouseMove);
+                      document.removeEventListener('mouseup', handleMouseUp);
+                    };
+
+                    document.addEventListener('mousemove', handleMouseMove);
+                    document.addEventListener('mouseup', handleMouseUp);
+                  }}
+                />
+                <div className="side-panel coach-panel" style={{ width: `${coachWidth}px` }}>
+                  <Coach
+                    profession={profession!}
+                    sessionContext={session.diagnosis}
+                    conversationHistory={recentConversation}
+                    apiConfig={apiConfig}
+                    onClose={() => setShowCoach(false)}
+                  />
+                </div>
+              </>
+            )}
           </div>
         </>
       )}

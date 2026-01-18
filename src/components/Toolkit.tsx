@@ -8,8 +8,7 @@ interface ToolkitProps {
 
 export function Toolkit({ sections, isLoading, onAssessment }: ToolkitProps) {
   return (
-    <div className="info-box toolkit-box">
-      <h3>🩺 Assessment Tools</h3>
+    <>
       {sections.map((section) => (
         <div key={section.title} className="toolkit-section">
           <h4>{section.title}</h4>
@@ -25,6 +24,6 @@ export function Toolkit({ sections, isLoading, onAssessment }: ToolkitProps) {
           ))}
         </div>
       ))}
-    </div>
+    </>
   );
 }

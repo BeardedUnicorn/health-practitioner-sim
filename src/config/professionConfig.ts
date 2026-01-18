@@ -400,8 +400,145 @@ For interview data, summarize key clinical information.
 Provide the ${assessmentName} findings now:`
 };
 
+export const therapistConfig: ProfessionConfig = {
+  id: 'therapist',
+  name: 'Therapist',
+  emoji: '💚',
+  title: 'Therapy Training Simulator',
+  description: 'Practice therapeutic interventions, treatment planning, and evidence-based therapy techniques.',
+  userLabel: 'Therapist',
+  userEmoji: '💚',
+  patientLabel: 'Client',
+  patientEmoji: '🗨️',
+  diagnosisHint: '💡 Tip: When ready for treatment planning, type "My treatment plan is [approach]"',
+  diagnosisPattern: /my\s+treatment\s+plan\s+is\s+(.+)/i,
+  categories: [
+    'CBT Candidates (e.g., anxiety disorders, depression, phobias, panic disorder)',
+    'DBT Candidates (e.g., borderline personality, emotional dysregulation, self-harm)',
+    'ACT Candidates (e.g., chronic pain, anxiety, substance use, work stress)',
+    'EMDR Candidates (e.g., PTSD, trauma, disturbing memories)',
+    'Couples Therapy (e.g., communication issues, trust repair, intimacy problems)',
+    'Family Therapy (e.g., family conflict, parenting challenges, blended family issues)',
+    'Group Therapy (e.g., social anxiety, addiction recovery, grief support)',
+    'Child & Adolescent (e.g., school refusal, behavioral problems, divorce adjustment)',
+    'Substance Abuse (e.g., addiction recovery, relapse prevention, harm reduction)',
+    'Eating Disorders (e.g., anorexia recovery, binge eating, body image work)',
+    'Grief & Loss (e.g., bereavement, anticipatory grief, complicated grief)',
+    'Career & Life Coaching (e.g., career transition, work-life balance, goal setting)',
+    'Mindfulness-Based (e.g., stress reduction, anxiety management, emotional regulation)',
+    'Solution-Focused (e.g., specific problems, goal achievement, brief therapy)',
+    'Psychodynamic (e.g., insight-oriented work, attachment issues, repetitive patterns)'
+  ],
+  toolkit: [
+    {
+      title: 'Therapeutic Techniques',
+      items: [
+        { id: 'rapport', label: 'Build Rapport', emoji: '🤝', assessmentType: 'technique', assessmentName: 'Rapport Building & Therapeutic Alliance' },
+        { id: 'reflection', label: 'Reflective Listening', emoji: '🔄', assessmentType: 'technique', assessmentName: 'Reflective Listening & Validation' },
+        { id: 'questions', label: 'Socratic Questioning', emoji: '❓', assessmentType: 'technique', assessmentName: 'Socratic Questioning' },
+        { id: 'reframe', label: 'Cognitive Reframing', emoji: '🔀', assessmentType: 'technique', assessmentName: 'Cognitive Reframing' },
+        { id: 'mindfulness', label: 'Mindfulness Exercise', emoji: '🧘', assessmentType: 'technique', assessmentName: 'Mindfulness & Grounding' }
+      ]
+    },
+    {
+      title: 'CBT Interventions',
+      items: [
+        { id: 'thought_record', label: 'Thought Record', emoji: '📝', assessmentType: 'cbt', assessmentName: 'Thought Record & Cognitive Distortions' },
+        { id: 'behavioral', label: 'Behavioral Activation', emoji: '🎯', assessmentType: 'cbt', assessmentName: 'Behavioral Activation Planning' },
+        { id: 'exposure', label: 'Exposure Planning', emoji: '📊', assessmentType: 'cbt', assessmentName: 'Exposure Hierarchy Development' }
+      ]
+    },
+    {
+      title: 'DBT Skills',
+      items: [
+        { id: 'distress', label: 'Distress Tolerance', emoji: '🛡️', assessmentType: 'dbt', assessmentName: 'TIPP & Distress Tolerance Skills' },
+        { id: 'emotion_reg', label: 'Emotion Regulation', emoji: '🎨', assessmentType: 'dbt', assessmentName: 'Emotion Regulation Skills' },
+        { id: 'interpersonal', label: 'DEARMAN', emoji: '💬', assessmentType: 'dbt', assessmentName: 'Interpersonal Effectiveness (DEARMAN)' }
+      ]
+    },
+    {
+      title: 'Assessment & Planning',
+      items: [
+        { id: 'goals', label: 'Goal Setting', emoji: '🎯', assessmentType: 'planning', assessmentName: 'SMART Goals Development' },
+        { id: 'homework', label: 'Assign Homework', emoji: '📚', assessmentType: 'planning', assessmentName: 'Therapeutic Homework Assignment' },
+        { id: 'progress', label: 'Progress Review', emoji: '📈', assessmentType: 'planning', assessmentName: 'Treatment Progress Review' },
+        { id: 'safety_plan', label: 'Safety Planning', emoji: '🚨', assessmentType: 'planning', assessmentName: 'Crisis Safety Plan' }
+      ]
+    },
+    {
+      title: 'Specialized Approaches',
+      items: [
+        { id: 'emdr', label: 'EMDR Preparation', emoji: '👁️', assessmentType: 'specialized', assessmentName: 'EMDR Resource Installation' },
+        { id: 'motivational', label: 'Motivational Interviewing', emoji: '💪', assessmentType: 'specialized', assessmentName: 'Motivational Interviewing Techniques' },
+        { id: 'narrative', label: 'Narrative Therapy', emoji: '📖', assessmentType: 'specialized', assessmentName: 'Externalization & Re-authoring' }
+      ]
+    },
+    {
+      title: 'Comprehensive',
+      items: [
+        { id: 'full_session', label: 'Complete Session Review', emoji: '📋', assessmentType: 'comprehensive', assessmentName: 'Full Therapy Session Structure' }
+      ]
+    }
+  ],
+  getSetupPrompt: (category: string) => `You are a therapy education system. Generate a realistic client scenario for therapy training.
+
+IMPORTANT: You MUST select a presentation suitable for: ${category}
+Create a client who would benefit from this therapeutic approach.
+
+You must respond in EXACTLY this format (including the labels):
+DIAGNOSIS: [the primary presenting issue and treatment focus]
+CLIENT_PROFILE: [age, gender, occupation, relevant background]
+PRESENTING_CONCERN: [what brought them to therapy in their own words]
+SYMPTOMS: [current symptoms and functional impacts]
+HISTORY: [relevant history, previous therapy, what has/hasn't worked]
+GOALS: [what the client hopes to achieve in therapy]
+READINESS: [stage of change - precontemplation/contemplation/preparation/action/maintenance]
+
+Example format:
+DIAGNOSIS: Generalized Anxiety Disorder - CBT candidate
+CLIENT_PROFILE: 32-year-old female, marketing manager, married with one child
+PRESENTING_CONCERN: "My anxiety is controlling my life and I need to learn how to manage it"
+SYMPTOMS: Constant worry, physical tension, sleep problems, avoidance of work presentations, irritability
+HISTORY: No previous therapy, tried meditation apps with minimal success, anxiety worsened after promotion
+GOALS: Manage anxiety without medication, return to normal work functioning, improve family relationships
+READINESS: Preparation stage - ready to learn and practice new skills
+
+Now generate a client for ${category} therapy:`,
+
+  getSystemPrompt: (setupContent: string) => `You are roleplaying as a therapy CLIENT seeking help.
+
+YOUR CLIENT PROFILE:
+${setupContent}
+
+CRITICAL INSTRUCTIONS:
+1. You ARE the client in therapy. Speak naturally about your experiences.
+2. You are talking TO a therapist who is helping you.
+3. Respond to therapeutic interventions realistically - change takes time.
+4. Show appropriate readiness for change based on your profile.
+5. You can be ambivalent, resistant, or eager depending on the context.
+6. Respond to techniques appropriately (e.g., try exercises, express doubts, ask questions).
+7. Do NOT use clinical terminology unless you would realistically know it.
+8. Build on previous session content and show gradual progress.
+9. Express both thoughts AND feelings naturally.
+10. You can have insights but also blind spots - therapy is a process.
+
+Remember: You are the CLIENT. The user is the THERAPIST working with you.`,
+
+  getAssessmentPrompt: (diagnosis: string, assessmentName: string, assessmentType: string) => 
+    `Based on the client's presentation (${diagnosis}), provide realistic ${assessmentName} results for a ${assessmentType} intervention.
+
+For techniques: Describe the client's response to the intervention.
+For assessments: Provide relevant clinical observations.
+For planning: Outline specific, actionable items.
+Keep it to 2-4 sentences, clinically relevant and realistic.
+
+Provide the ${assessmentName} outcome now:`
+};
+
+// Update the professionConfigs export
 export const professionConfigs: Record<string, ProfessionConfig> = {
   nurse: nurseConfig,
   psychiatrist: psychiatristConfig,
-  psychologist: psychologistConfig
+  psychologist: psychologistConfig,
+  therapist: therapistConfig
 };
