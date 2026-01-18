@@ -12,6 +12,28 @@ dist
 dist-ssr
 *.local
 
+# Env files
+.env
+.env.*
+!.env.example
+!.env.template
+
+# Build outputs and caches
+coverage
+*.tsbuildinfo
+.vite
+.eslintcache
+
+# Yarn
+.yarn/cache
+.yarn/unplugged
+.yarn/build-state.yml
+.yarn/install-state.gz
+.pnp.*
+
+# Repomix
+repomix-output.md
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
