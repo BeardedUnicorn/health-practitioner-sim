@@ -535,10 +535,187 @@ Keep it to 2-4 sentences, clinically relevant and realistic.
 Provide the ${assessmentName} outcome now:`
 };
 
-// Update the professionConfigs export
+
+export const doulaConfig: ProfessionConfig = {
+  id: 'doula',
+  name: 'Birth Doula',
+  emoji: '🤱',
+  title: 'Birth Doula Training Simulator',
+  description: 'Practice providing continuous physical, emotional, and informational support during pregnancy, labor, birth, and postpartum.',
+  userLabel: 'Doula',
+  userEmoji: '🤱',
+  patientLabel: 'Birthing Person',
+  patientEmoji: '🤰',
+  diagnosisHint: '💡 Tip: When ready to provide your birth support plan, type "My support plan is [approach]"',
+  diagnosisPattern: /my\s+support\s+plan\s+is\s+(.+)/i,
+  categories: [
+    'Early Labor Support (e.g., first-time parent, anxious about labor, seeking natural birth)',
+    'Active Labor Support (e.g., pain management, position changes, breathing techniques)',
+    'Transition Phase (e.g., intense contractions, loss of focus, need for encouragement)',
+    'Pushing & Birth (e.g., coaching through pushing, advocating for preferences)',
+    'Medical Interventions (e.g., induction, epidural, cesarean birth support)',
+    'High-Risk Situations (e.g., preeclampsia, gestational diabetes, previous trauma)',
+    'VBAC Support (e.g., vaginal birth after cesarean, addressing fears)',
+    'Multiple Births (e.g., twins, positioning concerns, extended labor)',
+    'Postpartum Support (e.g., immediate bonding, breastfeeding initiation, emotional support)',
+    'Loss & Grief (e.g., stillbirth, miscarriage, termination for medical reasons)',
+    'Teen Parents (e.g., young mother, limited support, education needs)',
+    'LGBTQ+ Families (e.g., non-gestational parent support, inclusive language)',
+    'Cultural Considerations (e.g., specific cultural practices, language barriers, traditional beliefs)',
+    'Partner Support (e.g., helping partner be involved, managing partner anxiety)',
+    'Home Birth Support (e.g., natural home setting, transfer decisions, midwife coordination)',
+    'Birth Center Support (e.g., low-intervention environment, movement and positioning)',
+    'Hospital Birth Support (e.g., navigating hospital protocols, advocating for preferences)',
+    'Unplanned Cesarean (e.g., emotional support, gentle cesarean techniques)',
+    'Precipitous Labor (e.g., rapid labor, managing intensity, location concerns)',
+    'Back Labor (e.g., posterior position, counter-pressure, position changes)'
+  ],
+  toolkit: [
+    {
+      title: 'Physical Support',
+      items: [
+        { id: 'positions', label: 'Labor Positions', emoji: '🧘‍♀️', assessmentType: 'physical', assessmentName: 'Optimal Labor Positioning Guide' },
+        { id: 'counter_pressure', label: 'Counter-Pressure', emoji: '✋', assessmentType: 'physical', assessmentName: 'Counter-Pressure Techniques for Back Labor' },
+        { id: 'massage', label: 'Massage Techniques', emoji: '💆‍♀️', assessmentType: 'physical', assessmentName: 'Labor Massage and Touch Therapy' },
+        { id: 'rebozo', label: 'Rebozo Techniques', emoji: '🧣', assessmentType: 'physical', assessmentName: 'Rebozo Sifting and Positioning' },
+        { id: 'peanut_ball', label: 'Peanut Ball Use', emoji: '🥜', assessmentType: 'physical', assessmentName: 'Peanut Ball Positioning' },
+        { id: 'birthing_ball', label: 'Birthing Ball', emoji: '⚽', assessmentType: 'physical', assessmentName: 'Birthing Ball Exercises' }
+      ]
+    },
+    {
+      title: 'Comfort Measures',
+      items: [
+        { id: 'breathing', label: 'Breathing Patterns', emoji: '🌬️', assessmentType: 'comfort', assessmentName: 'Rhythmic Breathing Techniques' },
+        { id: 'hydrotherapy', label: 'Hydrotherapy', emoji: '🚿', assessmentType: 'comfort', assessmentName: 'Shower and Tub Use for Labor' },
+        { id: 'heat_cold', label: 'Heat/Cold Therapy', emoji: '🔥', assessmentType: 'comfort', assessmentName: 'Therapeutic Temperature Application' },
+        { id: 'aromatherapy', label: 'Aromatherapy', emoji: '🌸', assessmentType: 'comfort', assessmentName: 'Safe Essential Oils for Labor' },
+        { id: 'tens', label: 'TENS Unit', emoji: '⚡', assessmentType: 'comfort', assessmentName: 'TENS Unit Application for Pain Relief' }
+      ]
+    },
+    {
+      title: 'Emotional Support',
+      items: [
+        { id: 'affirmations', label: 'Birth Affirmations', emoji: '💪', assessmentType: 'emotional', assessmentName: 'Positive Affirmations and Encouragement' },
+        { id: 'visualization', label: 'Visualization', emoji: '🌈', assessmentType: 'emotional', assessmentName: 'Guided Visualization Techniques' },
+        { id: 'fear_release', label: 'Fear Release', emoji: '🦋', assessmentType: 'emotional', assessmentName: 'Addressing Fears and Anxiety' },
+        { id: 'presence', label: 'Calming Presence', emoji: '🕊️', assessmentType: 'emotional', assessmentName: 'Grounding and Calming Techniques' }
+      ]
+    },
+    {
+      title: 'Informational Support',
+      items: [
+        { id: 'stages', label: 'Labor Stages Info', emoji: '📚', assessmentType: 'info', assessmentName: 'Explaining Labor Progression' },
+        { id: 'interventions', label: 'Intervention Info', emoji: '💉', assessmentType: 'info', assessmentName: 'Medical Interventions Explanation' },
+        { id: 'options', label: 'Birth Options', emoji: '🔀', assessmentType: 'info', assessmentName: 'Available Options and Choices' },
+        { id: 'newborn', label: 'Newborn Procedures', emoji: '👶', assessmentType: 'info', assessmentName: 'Standard Newborn Care Procedures' }
+      ]
+    },
+    {
+      title: 'Advocacy',
+      items: [
+        { id: 'preferences', label: 'Birth Preferences', emoji: '📋', assessmentType: 'advocacy', assessmentName: 'Birth Plan Review and Advocacy' },
+        { id: 'communication', label: 'Medical Team Communication', emoji: '🗣️', assessmentType: 'advocacy', assessmentName: 'Facilitating Communication with Staff' },
+        { id: 'informed_consent', label: 'Informed Consent', emoji: '✍️', assessmentType: 'advocacy', assessmentName: 'Supporting Informed Decision-Making' }
+      ]
+    },
+    {
+      title: 'Partner Support',
+      items: [
+        { id: 'partner_involvement', label: 'Partner Coaching', emoji: '👥', assessmentType: 'partner', assessmentName: 'Coaching Partner Support Techniques' },
+        { id: 'breaks', label: 'Partner Breaks', emoji: '☕', assessmentType: 'partner', assessmentName: 'Ensuring Partner Self-Care' },
+        { id: 'bonding', label: 'Partner Bonding', emoji: '❤️', assessmentType: 'partner', assessmentName: 'Facilitating Partner-Baby Bonding' }
+      ]
+    },
+    {
+      title: 'Postpartum',
+      items: [
+        { id: 'breastfeeding', label: 'Breastfeeding Support', emoji: '🤱', assessmentType: 'postpartum', assessmentName: 'Initial Breastfeeding Assistance' },
+        { id: 'skin_to_skin', label: 'Skin-to-Skin', emoji: '🫂', assessmentType: 'postpartum', assessmentName: 'Promoting Skin-to-Skin Contact' },
+        { id: 'birth_story', label: 'Birth Story Review', emoji: '📖', assessmentType: 'postpartum', assessmentName: 'Processing the Birth Experience' },
+        { id: 'warning_signs', label: 'Postpartum Warning Signs', emoji: '⚠️', assessmentType: 'postpartum', assessmentName: 'Postpartum Complications to Watch For' }
+      ]
+    },
+    {
+      title: 'Assessment',
+      items: [
+        { id: 'vital_signs', label: 'Check Vital Signs', emoji: '🩺', assessmentType: 'assessment', assessmentName: 'Observe Maternal Vital Signs' },
+        { id: 'contraction_pattern', label: 'Contraction Timing', emoji: '⏱️', assessmentType: 'assessment', assessmentName: 'Contraction Pattern Assessment' },
+        { id: 'emotional_state', label: 'Emotional Check', emoji: '😊', assessmentType: 'assessment', assessmentName: 'Emotional and Mental State Assessment' },
+        { id: 'environment', label: 'Environment Check', emoji: '🏠', assessmentType: 'assessment', assessmentName: 'Birth Environment Optimization' }
+      ]
+    },
+    {
+      title: 'Comprehensive',
+      items: [
+        { id: 'full_support', label: 'Complete Support Review', emoji: '📋', assessmentType: 'comprehensive', assessmentName: 'Comprehensive Labor Support Plan' }
+      ]
+    }
+  ],
+  getSetupPrompt: (category: string) => `You are a birth doula education system. Generate a realistic birthing person scenario for doula training.
+
+IMPORTANT: You MUST create a scenario from this category: ${category}
+Create a realistic pregnant person with specific needs, preferences, and circumstances.
+
+You must respond in EXACTLY this format (including the labels):
+SITUATION: [the specific birth scenario and stage of labor/pregnancy]
+BIRTHING_PERSON_PROFILE: [age, weeks pregnant, gravida/para, relevant medical/social background]
+SUPPORT_SYSTEM: [partner/family present, their involvement level, any concerns]
+BIRTH_PREFERENCES: [key preferences - pain management, interventions, environment, cultural needs]
+CURRENT_STATUS: [where they are in labor/pregnancy, what's happening now, emotional state]
+CONCERNS: [specific fears, challenges, or issues that need doula support]
+MEDICAL_CONTEXT: [any relevant medical history, current complications, provider recommendations]
+
+Example format:
+SITUATION: Active labor, first baby, seeking natural unmedicated birth in hospital
+BIRTHING_PERSON_PROFILE: 28-year-old, 40 weeks pregnant, G1P0, healthy pregnancy, took childbirth classes
+SUPPORT_SYSTEM: Partner present but anxious and unsure how to help, mother arriving soon
+BIRTH_PREFERENCES: Wants to avoid epidural, prefers movement and water, wants delayed cord clamping, skin-to-skin immediately
+CURRENT_STATUS: 5cm dilated, contractions every 3-4 minutes, coping but starting to doubt ability to continue without pain medication
+CONCERNS: Fear of losing control, worried about disappointing partner if needs epidural, back pain increasing
+MEDICAL_CONTEXT: No complications, healthy baby, provider supportive of birth preferences
+
+Now generate a birthing person scenario for ${category}:`,
+
+  getSystemPrompt: (setupContent: string) => `You are roleplaying as a BIRTHING PERSON in labor or during pregnancy seeking doula support.
+
+YOUR SCENARIO:
+${setupContent}
+
+CRITICAL INSTRUCTIONS:
+1. You ARE the birthing person. Speak from your experience in first person.
+2. You are talking TO a doula who is supporting you.
+3. Express your physical sensations honestly (contractions, pain, pressure, fatigue).
+4. Show your emotional state realistically (fear, excitement, doubt, determination, overwhelm).
+5. Respond to comfort measures and suggestions - some will help, some may not.
+6. You can be vulnerable, scared, or confident depending on the moment.
+7. Labor changes you - you might become more internal/quiet as it intensifies.
+8. Ask questions when you need information or reassurance.
+9. Express your needs, but you might not always know what you need.
+10. Respond to your support person's presence and involvement.
+11. You may become less verbal during intense contractions.
+12. Show appreciation for support that helps you.
+
+Remember: You are the BIRTHING PERSON. The user is the DOULA supporting you through this birth experience.`,
+
+  getAssessmentPrompt: (diagnosis: string, assessmentName: string, assessmentType: string) => 
+    `Based on the birthing person's situation (${diagnosis}), provide realistic ${assessmentName} guidance for a ${assessmentType} support intervention.
+
+For physical support: Describe specific positions, movements, or techniques to use now.
+For comfort measures: Explain how to apply this technique for their current situation.
+For emotional support: Provide specific words, affirmations, or approaches.
+For informational support: Give clear, accurate information appropriate to their situation.
+For advocacy: Suggest how to support their preferences with medical team.
+For assessment: Describe what you observe and what it means.
+
+Keep it to 2-4 sentences, practical and specific to this birth.
+
+Provide the ${assessmentName} guidance now:`
+};
+
 export const professionConfigs: Record<string, ProfessionConfig> = {
   nurse: nurseConfig,
   psychiatrist: psychiatristConfig,
   psychologist: psychologistConfig,
-  therapist: therapistConfig
+  therapist: therapistConfig,
+  doula: doulaConfig
 };

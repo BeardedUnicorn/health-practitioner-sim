@@ -1,4 +1,4 @@
-export type Profession = 'nurse' | 'psychiatrist' | 'psychologist' | 'therapist';
+export type Profession = 'nurse' | 'psychiatrist' | 'psychologist' | 'therapist' | 'doula';
 
 export interface Message {
   role: 'user' | 'assistant' | 'system';
