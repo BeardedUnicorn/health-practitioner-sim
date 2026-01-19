@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import ReactMarkdown from 'react-markdown';
 import { Profession, ApiConfig } from '../types';
 import { professionConfigs } from '../config/professionConfig';
 
@@ -82,7 +83,9 @@ Keep advice concise, practical, and specific to this case. Use bullet points for
             <p>Analyzing conversation and generating guidance...</p>
           </div>
         ) : (
-          <div className="coach-advice">{coachAdvice}</div>
+          <div className="coach-advice">
+            <ReactMarkdown>{coachAdvice}</ReactMarkdown>
+          </div>
         )}
       </div>
       <div className="side-panel-footer">

@@ -1,3 +1,4 @@
+import ReactMarkdown from 'react-markdown';
 import { Message as MessageType } from '../types';
 
 interface MessageProps {
@@ -16,7 +17,9 @@ export function Message({ message, userLabel, userEmoji, patientLabel, patientEm
       <div className="message-label">
         {isUser ? `${userEmoji} ${userLabel}` : `${patientEmoji} ${patientLabel}`}
       </div>
-      <div className="message-content">{message.content}</div>
+      <div className="message-content">
+        <ReactMarkdown>{message.content}</ReactMarkdown>
+      </div>
     </div>
   );
 }

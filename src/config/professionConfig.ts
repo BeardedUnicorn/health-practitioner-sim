@@ -712,10 +712,179 @@ Keep it to 2-4 sentences, practical and specific to this birth.
 Provide the ${assessmentName} guidance now:`
 };
 
+export const pregnancyPartnerConfig: ProfessionConfig = {
+  id: 'pregnancyPartner',
+  name: 'Pregnancy Partner Support',
+  emoji: '👫',
+  title: 'Pregnancy Partner Training Simulator',
+  description: 'Practice supporting your pregnant partner through various challenges, complaints, and emotional needs during pregnancy.',
+  userLabel: 'Partner',
+  userEmoji: '👫',
+  patientLabel: 'Pregnant Partner',
+  patientEmoji: '🤰',
+  diagnosisHint: '💡 Tip: Focus on listening, validating feelings, and offering practical support',
+  diagnosisPattern: /my\s+support\s+approach\s+is\s+(.+)/i,
+  categories: [
+    'First Trimester - Morning Sickness (e.g., nausea, food aversions, sensitivity to smells, fatigue)',
+    'First Trimester - Fatigue & Exhaustion (e.g., extreme tiredness, need for extra sleep, low energy)',
+    'First Trimester - Emotional Changes (e.g., mood swings, anxiety about pregnancy, overwhelm)',
+    'First Trimester - Body Changes (e.g., breast tenderness, bloating, headaches)',
+    'Second Trimester - Physical Discomfort (e.g., back pain, round ligament pain, leg cramps)',
+    'Second Trimester - Body Image Concerns (e.g., weight gain feelings, changing body, clothing frustration)',
+    'Second Trimester - Anxiety About Baby (e.g., worry about health, gender reveal feelings, preparation stress)',
+    'Second Trimester - Relationship Changes (e.g., intimacy concerns, feeling disconnected, need for reassurance)',
+    'Third Trimester - Physical Challenges (e.g., difficulty sleeping, swelling, heartburn, shortness of breath)',
+    'Third Trimester - Birth Anxiety (e.g., fear of labor, birth plan stress, hospital concerns)',
+    'Third Trimester - Nesting & Preparation (e.g., overwhelming to-do lists, nursery stress, financial worries)',
+    'Third Trimester - Emotional Overwhelm (e.g., feeling huge, impatience to meet baby, fear of being a parent)',
+    'Pregnancy Complications (e.g., bed rest frustration, gestational diabetes management, high blood pressure stress)',
+    'Work & Career Concerns (e.g., telling workplace, maternity leave worries, career impact fears)',
+    'Previous Loss or Trauma (e.g., anxiety after miscarriage, fear of loss, hypervigilance)',
+    'Unsolicited Advice Frustration (e.g., family pressure, strangers touching belly, conflicting opinions)',
+    'Partner Feeling Left Out (e.g., wanting partner more involved, feeling alone, need for teamwork)',
+    'Intimacy & Physical Changes (e.g., changes in desire, physical limitations, emotional connection needs)',
+    'Mental Health During Pregnancy (e.g., prenatal depression, anxiety disorders, mood management)',
+    'Practical Support Needs (e.g., help with chores, appointments, meal preparation, rest reminders)'
+  ],
+  toolkit: [
+    {
+      title: 'Active Listening',
+      items: [
+        { id: 'validate', label: 'Validate Feelings', emoji: '💚', assessmentType: 'emotional', assessmentName: 'Emotional Validation Response' },
+        { id: 'reflect', label: 'Reflect Back', emoji: '🪞', assessmentType: 'emotional', assessmentName: 'Reflective Listening Response' },
+        { id: 'empathize', label: 'Show Empathy', emoji: '🤗', assessmentType: 'emotional', assessmentName: 'Empathetic Response' },
+        { id: 'nofix', label: 'Listen Without Fixing', emoji: '👂', assessmentType: 'emotional', assessmentName: 'Non-Solution Focused Response' }
+      ]
+    },
+    {
+      title: 'Physical Support',
+      items: [
+        { id: 'massage', label: 'Offer Massage', emoji: '💆', assessmentType: 'physical', assessmentName: 'Physical Comfort Offer' },
+        { id: 'fetch', label: 'Get Something', emoji: '🏃', assessmentType: 'physical', assessmentName: 'Practical Fetch Request' },
+        { id: 'position', label: 'Help With Comfort', emoji: '🛋️', assessmentType: 'physical', assessmentName: 'Comfort Positioning Help' },
+        { id: 'food', label: 'Food/Drink Support', emoji: '🍎', assessmentType: 'physical', assessmentName: 'Nutrition Support Offer' }
+      ]
+    },
+    {
+      title: 'Emotional Support',
+      items: [
+        { id: 'reassure', label: 'Reassurance', emoji: '🌟', assessmentType: 'reassurance', assessmentName: 'Reassuring Words' },
+        { id: 'compliment', label: 'Give Compliment', emoji: '💕', assessmentType: 'reassurance', assessmentName: 'Genuine Compliment' },
+        { id: 'future', label: 'Talk About Future', emoji: '👶', assessmentType: 'reassurance', assessmentName: 'Positive Future Discussion' },
+        { id: 'together', label: 'Express Partnership', emoji: '🤝', assessmentType: 'reassurance', assessmentName: 'Partnership Affirmation' }
+      ]
+    },
+    {
+      title: 'Practical Help',
+      items: [
+        { id: 'chores', label: 'Offer to Do Chores', emoji: '🧹', assessmentType: 'practical', assessmentName: 'Household Help Offer' },
+        { id: 'appointment', label: 'Appointment Support', emoji: '📅', assessmentType: 'practical', assessmentName: 'Medical Appointment Assistance' },
+        { id: 'research', label: 'Research Together', emoji: '📚', assessmentType: 'practical', assessmentName: 'Information Gathering Support' },
+        { id: 'planning', label: 'Help With Planning', emoji: '📝', assessmentType: 'practical', assessmentName: 'Baby Preparation Planning' }
+      ]
+    },
+    {
+      title: 'Self-Care Reminders',
+      items: [
+        { id: 'rest', label: 'Encourage Rest', emoji: '😴', assessmentType: 'selfcare', assessmentName: 'Rest Encouragement' },
+        { id: 'water', label: 'Hydration Reminder', emoji: '💧', assessmentType: 'selfcare', assessmentName: 'Gentle Hydration Reminder' },
+        { id: 'break', label: 'Suggest Break', emoji: '☕', assessmentType: 'selfcare', assessmentName: 'Break Time Suggestion' },
+        { id: 'boundaries', label: 'Protect Boundaries', emoji: '🛡️', assessmentType: 'selfcare', assessmentName: 'Boundary Setting Support' }
+      ]
+    },
+    {
+      title: 'Connection',
+      items: [
+        { id: 'quality', label: 'Quality Time', emoji: '🎬', assessmentType: 'connection', assessmentName: 'Quality Time Offer' },
+        { id: 'touch', label: 'Physical Affection', emoji: '🤱', assessmentType: 'connection', assessmentName: 'Appropriate Physical Affection' },
+        { id: 'date', label: 'Plan Date Night', emoji: '🌙', assessmentType: 'connection', assessmentName: 'Pregnancy-Friendly Date Idea' },
+        { id: 'baby', label: 'Connect With Baby', emoji: '🎵', assessmentType: 'connection', assessmentName: 'Baby Bonding Activity' }
+      ]
+    },
+    {
+      title: 'When to Seek Help',
+      items: [
+        { id: 'warning', label: 'Know Warning Signs', emoji: '⚠️', assessmentType: 'medical', assessmentName: 'Medical Warning Signs to Watch' },
+        { id: 'mental', label: 'Mental Health Check', emoji: '🧠',assessmentType: 'medical', assessmentName: 'Mental Health Resource Information' },
+        { id: 'professional', label: 'Suggest Professional Help', emoji: '👩‍⚕️', assessmentType: 'medical', assessmentName: 'Professional Support Suggestion' }
+      ]
+    },
+    {
+      title: 'Comprehensive',
+      items: [
+        { id: 'full_support', label: 'Complete Support Review', emoji: '📋', assessmentType: 'comprehensive', assessmentName: 'Comprehensive Partner Support Guide' }
+      ]
+    }
+  ],
+  getSetupPrompt: (category: string) => `You are a pregnancy education system. Generate a realistic scenario of a pregnant person experiencing common pregnancy complaints for partner support training.
+
+IMPORTANT: You MUST create a scenario from this category: ${category}
+Create a realistic pregnant person with specific physical symptoms, emotional state, and needs.
+
+You must respond in EXACTLY this format (including the labels):
+SITUATION: [the specific pregnancy complaint or challenge - what's happening right now]
+PREGNANT_PERSON_PROFILE: [weeks pregnant, relevant background, personality, how they typically express needs]
+PHYSICAL_STATE: [current physical symptoms, discomfort level, what's bothering them physically]
+EMOTIONAL_STATE: [how they're feeling emotionally, mood, underlying concerns or fears]
+WHAT_THEY_NEED: [what would actually help - but they may not say this directly]
+CONTEXT: [time of day, what they were doing, any triggers or recent events]
+COMMUNICATION_STYLE: [how they express themselves when struggling - direct, hints, emotional, withdrawn, etc.]
+
+Example format:
+SITUATION: Third trimester severe heartburn after dinner, can't get comfortable
+PREGNANT_PERSON_PROFILE: 34 weeks pregnant, first pregnancy, usually independent but feeling vulnerable, tends to downplay discomfort
+PHYSICAL_STATE: Intense burning sensation in chest, can't lie flat, pressure from baby on stomach, also has swollen ankles
+EMOTIONAL_STATE: Frustrated and tearful, feeling like their body is failing them, worried this will continue, missing feeling normal
+WHAT_THEY_NEED: Wants partner to acknowledge how hard this is, help prop up pillows, maybe get antacids, and just sit with them
+CONTEXT: 9pm after dinner, was trying to relax and watch TV, heartburn suddenly got worse, partner is in other room
+COMMUNICATION_STYLE: Sighs loudly and makes uncomfortable noises hoping partner notices, may get snippy if asked "what's wrong" too casually
+
+Now generate a pregnant person scenario for ${category}:`,
+
+  getSystemPrompt: (setupContent: string) => `You are roleplaying as a PREGNANT PERSON experiencing pregnancy-related challenges and needing support from your partner.
+
+YOUR SCENARIO:
+${setupContent}
+
+CRITICAL INSTRUCTIONS:
+1. You ARE the pregnant person. Speak from your experience in first person.
+2. You are talking TO your partner (not a medical professional).
+3. Express your physical discomfort authentically - pregnancy symptoms are real and valid.
+4. Show your emotional state - it's okay to be frustrated, tearful, irritable, or needy.
+5. You might not directly ask for what you need - partners need to learn to offer support.
+6. React realistically to your partner's responses:
+   - Good support: Express relief, appreciation, feel heard
+   - Poor support: Get more frustrated, feel dismissed, may shut down or escalate
+   - Trying to "fix" too quickly: May feel unheard, want validation first
+7. You can be irrational sometimes - pregnancy hormones are real and affect emotions.
+8. Use realistic language - you might complain, vent, seek reassurance, or just need presence.
+9. If your partner does something helpful, acknowledge it positively.
+10. You love your partner but are going through something physically and emotionally challenging.
+11. Sometimes you don't know what you need - that's okay to express too.
+
+Remember: You are the PREGNANT PERSON. The user is your PARTNER learning to support you better.`,
+
+  getAssessmentPrompt: (diagnosis: string, assessmentName: string, assessmentType: string) => 
+    `Based on the pregnant person's situation (${diagnosis}), provide guidance for the partner on ${assessmentName}.
+
+For emotional support: Suggest specific words or phrases that would help, explain why validation matters.
+For physical support: Give specific, practical suggestions for this situation.
+For reassurance: Provide genuine, meaningful ways to reassure without dismissing feelings.
+For practical help: List specific actions the partner could take right now.
+For self-care: Suggest gentle ways to encourage rest or self-care without being pushy.
+For connection: Offer ways to maintain intimacy and connection during this challenging time.
+For medical: Provide information about when professional help is needed.
+
+Keep it to 2-4 sentences, practical and specific to this situation. Remember the partner is learning - be encouraging.
+
+Provide the ${assessmentName} guidance now:`
+};
+
 export const professionConfigs: Record<string, ProfessionConfig> = {
   nurse: nurseConfig,
   psychiatrist: psychiatristConfig,
   psychologist: psychologistConfig,
   therapist: therapistConfig,
-  doula: doulaConfig
+  doula: doulaConfig,
+  pregnancyPartner: pregnancyPartnerConfig
 };
