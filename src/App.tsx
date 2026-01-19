@@ -8,8 +8,9 @@ import { SessionStart } from './components/SessionStart';
 import { ChatContainer } from './components/ChatContainer';
 import { Toolkit } from './components/Toolkit';
 import { Coach } from './components/Coach';
+import { LoadingSession } from './components/LoadingSession';
 
-type AppState = 'profession-select' | 'ready' | 'session';
+type AppState = 'profession-select' | 'ready' | 'loading-session' | 'session';
 
 function App() {
   const [appState, setAppState] = useState<AppState>('profession-select');
@@ -51,9 +52,11 @@ function App() {
   const startNewSession = async () => {
     if (!professionConfig) return;
     
-    setIsLoading(true);
+    // Show loading page
+    setAppState('loading-session');
     setFeedback(null);
     setShowAnswer(false);
+    setShowCoach(false);
     
     try {
       const randomCategory = professionConfig.categories[
@@ -82,14 +85,41 @@ function App() {
       const setupData = await setupResponse.json();
       const setupContent = setupData.choices[0].message.content;
       
-      const diagnosisMatch = setupContent.match(/DIAGNOSIS:\s*(.+?)(?:\n|$)/i);
-      const diagnosis = diagnosisMatch ? diagnosisMatch[1].trim() : 'Unknown Condition';
+      // Try different patterns for different profession types
+      let diagnosis = 'Unknown Condition';
+      
+      const diagnosisPatterns = [
+        /DIAGNOSIS:\s*(.+?)(?:\n|$)/i,
+        /UNDERLYING_NEED:\s*(.+?)(?:\n|$)/i,
+        /SITUATION:\s*(.+?)(?:\n|$)/i
+      ];
+      
+      for (const pattern of diagnosisPatterns) {
+        const match = setupContent.match(pattern);
+        if (match && match[1].trim()) {
+          diagnosis = match[1].trim();
+          break;
+        }
+      }
       
       const systemPrompt = professionConfig.getSystemPrompt(setupContent);
 
-      const initialGreeting = profession === 'psychologist' || profession === 'therapist'
-        ? "Hi... thanks for seeing me. I'm not really sure where to start..."
-        : "Hello, I'm not feeling well. I think I need help...";
+      let initialGreeting: string;
+      
+      switch (profession) {
+        case 'psychologist':
+        case 'therapist':
+          initialGreeting = "Hi... thanks for seeing me. I'm not really sure where to start...";
+          break;
+        case 'pregnancyPartner':
+          initialGreeting = "*sighs* Hey...";
+          break;
+        case 'doula':
+          initialGreeting = "I'm so glad you're here...";
+          break;
+        default:
+          initialGreeting = "Hello, I'm not feeling well. I think I need help...";
+      }
 
       const initialHistory: Message[] = [
         { role: 'system', content: systemPrompt },
@@ -105,8 +135,8 @@ function App() {
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       alert(`Error starting session: ${message}`);
-    } finally {
-      setIsLoading(false);
+      // Go back to ready state on error
+      setAppState('ready');
     }
   };
 
@@ -182,7 +212,6 @@ function App() {
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       alert(`Error sending message: ${message}`);
-      // Optionally remove the user message on error, or leave it
     } finally {
       setIsLoading(false);
     }
@@ -308,9 +337,24 @@ function App() {
           </div>
           <SessionStart
             professionConfig={professionConfig}
-            isLoading={isLoading}
+            isLoading={false}
             onStart={startNewSession}
           />
+        </>
+      )}
+
+      {/* Loading Session Screen */}
+      {appState === 'loading-session' && professionConfig && (
+        <>
+          <div className="header">
+            <h1>{professionConfig.emoji} {professionConfig.title}</h1>
+            <div className="header-buttons">
+              <button onClick={() => setShowSettings(true)} className="btn-secondary">
+                ⚙️ Settings
+              </button>
+            </div>
+          </div>
+          <LoadingSession professionConfig={professionConfig} />
         </>
       )}
 
