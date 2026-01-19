@@ -116,6 +116,17 @@ function App() {
     const userMessage = currentMessage.trim();
     setCurrentMessage('');
 
+    // Immediately add user message to conversation
+    const updatedHistoryWithUserMessage: Message[] = [
+      ...session.conversationHistory,
+      { role: 'user', content: userMessage }
+    ];
+
+    setSession({
+      ...session,
+      conversationHistory: updatedHistoryWithUserMessage
+    });
+
     const diagnosisMatch = userMessage.match(professionConfig.diagnosisPattern);
 
     if (diagnosisMatch) {
@@ -129,23 +140,10 @@ function App() {
           ? `✅ Correct! The ${professionConfig.patientLabel.toLowerCase()}'s condition is ${session.diagnosis}.`
           : `❌ Incorrect. The ${professionConfig.patientLabel.toLowerCase()}'s condition is ${session.diagnosis}, not ${userDiagnosis}.`
       });
-      
-      setSession({
-        ...session,
-        conversationHistory: [
-          ...session.conversationHistory,
-          { role: 'user', content: userMessage }
-        ]
-      });
       return;
     }
 
     setIsLoading(true);
-
-    const newHistory: Message[] = [
-      ...session.conversationHistory,
-      { role: 'user', content: userMessage }
-    ];
 
     try {
       const response = await fetch(`${apiConfig.apiUrl}/chat/completions`, {
@@ -156,7 +154,7 @@ function App() {
         },
         body: JSON.stringify({
           model: apiConfig.modelName,
-          messages: newHistory.map(msg => ({
+          messages: updatedHistoryWithUserMessage.map(msg => ({
             role: msg.role,
             content: msg.content
           })),
@@ -171,16 +169,20 @@ function App() {
       const data = await response.json();
       const assistantMessage = data.choices[0].message.content;
 
-      setSession({
-        ...session,
-        conversationHistory: [
-          ...newHistory,
-          { role: 'assistant', content: assistantMessage }
-        ]
+      setSession(prevSession => {
+        if (!prevSession) return null;
+        return {
+          ...prevSession,
+          conversationHistory: [
+            ...prevSession.conversationHistory,
+            { role: 'assistant', content: assistantMessage }
+          ]
+        };
       });
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       alert(`Error sending message: ${message}`);
+      // Optionally remove the user message on error, or leave it
     } finally {
       setIsLoading(false);
     }
@@ -190,6 +192,20 @@ function App() {
     if (!session || !professionConfig || performingAssessment) return;
 
     setPerformingAssessment(true);
+
+    // Immediately add the assessment action to conversation
+    const assessmentAction: Message = { role: 'user', content: `[Performed ${assessmentName}]` };
+    
+    setSession(prevSession => {
+      if (!prevSession) return null;
+      return {
+        ...prevSession,
+        conversationHistory: [
+          ...prevSession.conversationHistory,
+          assessmentAction
+        ]
+      };
+    });
 
     const assessmentPrompt = professionConfig.getAssessmentPrompt(
       session.diagnosis, 
@@ -223,13 +239,15 @@ function App() {
 
       const assessmentMessage = `📋 ${assessmentName}: ${assessmentResult}`;
       
-      setSession({
-        ...session,
-        conversationHistory: [
-          ...session.conversationHistory,
-          { role: 'user', content: `[Performed ${assessmentName}]` },
-          { role: 'assistant', content: assessmentMessage }
-        ]
+      setSession(prevSession => {
+        if (!prevSession) return null;
+        return {
+          ...prevSession,
+          conversationHistory: [
+            ...prevSession.conversationHistory,
+            { role: 'assistant', content: assessmentMessage }
+          ]
+        };
       });
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
@@ -358,7 +376,7 @@ function App() {
               profession={profession!}
               professionConfig={professionConfig}
               currentMessage={currentMessage}
-              isLoading={isLoading}
+              isLoading={isLoading || performingAssessment}
               feedback={feedback}
               showCoach={showCoach}
               onMessageChange={setCurrentMessage}
