@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import './App.css';
 import { Profession, PatientSession, ApiConfig, Message, ProgressData } from './types';
 import { professionConfigs } from './config/professionConfig';
@@ -42,11 +42,23 @@ function App() {
   // Progress state
   const [progress, setProgress] = useState<ProgressData>({ sessions: [], lastUpdated: 0 });
 
+  // Abort controller for canceling requests
+  const abortControllerRef = useRef<AbortController | null>(null);
+
   const professionConfig = profession ? professionConfigs[profession] : null;
 
   // Load progress on mount
   useEffect(() => {
     setProgress(loadProgress());
+  }, []);
+
+  // Cleanup abort controller on unmount
+  useEffect(() => {
+    return () => {
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+    };
   }, []);
 
   const refreshProgress = () => {
@@ -86,8 +98,19 @@ function App() {
     }
   };
 
+  const handleCancelLoading = () => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+      abortControllerRef.current = null;
+    }
+    setAppState('ready');
+  };
+
   const startNewSession = async () => {
     if (!professionConfig) return;
+    
+    // Create new abort controller
+    abortControllerRef.current = new AbortController();
     
     // Show loading page
     setAppState('loading-session');
@@ -114,7 +137,8 @@ function App() {
           model: apiConfig.modelName,
           messages: [{ role: 'user', content: setupPrompt }],
           temperature: 0.9
-        })
+        }),
+        signal: abortControllerRef.current.signal
       });
 
       if (!setupResponse.ok) {
@@ -170,10 +194,23 @@ function App() {
         conversationHistory: initialHistory
       });
       
+      // Clear abort controller on success
+      abortControllerRef.current = null;
+      
       setAppState('session');
     } catch (error) {
+      // Check if it was aborted
+      if (error instanceof Error && error.name === 'AbortError') {
+        console.log('Request was cancelled');
+        return; // Already handled by handleCancelLoading
+      }
+      
       const message = error instanceof Error ? error.message : String(error);
       alert(`Error starting session: ${message}`);
+      
+      // Clear abort controller
+      abortControllerRef.current = null;
+      
       // Go back to ready state on error
       setAppState('ready');
     }
@@ -437,7 +474,10 @@ function App() {
               </button>
             </div>
           </div>
-          <LoadingSession professionConfig={professionConfig} />
+          <LoadingSession 
+            professionConfig={professionConfig} 
+            onCancel={handleCancelLoading}
+          />
         </>
       )}
 
