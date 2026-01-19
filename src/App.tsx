@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import './App.css';
-import { Profession, PatientSession, ApiConfig, Message } from './types';
+import { Profession, PatientSession, ApiConfig, Message, ProgressData } from './types';
 import { professionConfigs } from './config/professionConfig';
 import { ProfessionSelect } from './components/ProfessionSelect';
 import { SettingsModal } from './components/SettingsModal';
@@ -9,8 +9,11 @@ import { ChatContainer } from './components/ChatContainer';
 import { Toolkit } from './components/Toolkit';
 import { Coach } from './components/Coach';
 import { LoadingSession } from './components/LoadingSession';
+import { SessionEvaluation } from './components/SessionEvaluation';
+import { ProgressScreen } from './components/ProgressScreen';
+import { loadProgress } from './utils/progressStorage';
 
-type AppState = 'profession-select' | 'ready' | 'loading-session' | 'session';
+type AppState = 'profession-select' | 'ready' | 'loading-session' | 'session' | 'progress';
 
 function App() {
   const [appState, setAppState] = useState<AppState>('profession-select');
@@ -31,8 +34,24 @@ function App() {
   const [showCoach, setShowCoach] = useState(false);
   const [performingAssessment, setPerformingAssessment] = useState(false);
   const [coachWidth, setCoachWidth] = useState(350);
+  
+  // Evaluation state
+  const [showEvaluation, setShowEvaluation] = useState(false);
+  const [userFinalAnswer, setUserFinalAnswer] = useState('');
+  
+  // Progress state
+  const [progress, setProgress] = useState<ProgressData>({ sessions: [], lastUpdated: 0 });
 
   const professionConfig = profession ? professionConfigs[profession] : null;
+
+  // Load progress on mount
+  useEffect(() => {
+    setProgress(loadProgress());
+  }, []);
+
+  const refreshProgress = () => {
+    setProgress(loadProgress());
+  };
 
   const handleProfessionSelect = (selectedProfession: Profession) => {
     setProfession(selectedProfession);
@@ -45,8 +64,26 @@ function App() {
     setShowAnswer(false);
     setShowToolkit(false);
     setShowCoach(false);
+    setShowEvaluation(false);
+    setUserFinalAnswer('');
     setProfession(null);
     setAppState('profession-select');
+  };
+
+  const handleShowProgress = () => {
+    setAppState('progress');
+  };
+
+  const handleBackFromProgress = () => {
+    if (profession) {
+      if (session) {
+        setAppState('session');
+      } else {
+        setAppState('ready');
+      }
+    } else {
+      setAppState('profession-select');
+    }
   };
 
   const startNewSession = async () => {
@@ -57,6 +94,8 @@ function App() {
     setFeedback(null);
     setShowAnswer(false);
     setShowCoach(false);
+    setShowEvaluation(false);
+    setUserFinalAnswer('');
     
     try {
       const randomCategory = professionConfig.categories[
@@ -164,12 +203,21 @@ function App() {
       const isCorrect = userDiagnosis.toLowerCase().includes(session.diagnosis.toLowerCase()) ||
                         session.diagnosis.toLowerCase().includes(userDiagnosis.toLowerCase());
       
+      // Store the user's answer for evaluation
+      setUserFinalAnswer(userDiagnosis);
+      
       setFeedback({
         correct: isCorrect,
         message: isCorrect 
           ? `✅ Correct! The ${professionConfig.patientLabel.toLowerCase()}'s condition is ${session.diagnosis}.`
           : `❌ Incorrect. The ${professionConfig.patientLabel.toLowerCase()}'s condition is ${session.diagnosis}, not ${userDiagnosis}.`
       });
+      
+      // Show evaluation after a brief delay
+      setTimeout(() => {
+        setShowEvaluation(true);
+      }, 500);
+      
       return;
     }
 
@@ -292,7 +340,13 @@ function App() {
     setShowAnswer(false);
     setShowToolkit(false);
     setShowCoach(false);
+    setShowEvaluation(false);
+    setUserFinalAnswer('');
     setAppState('ready');
+  };
+
+  const handleCloseEvaluation = () => {
+    setShowEvaluation(false);
   };
 
   // Get last 5 messages for coach context
@@ -313,11 +367,37 @@ function App() {
         />
       )}
 
+      {/* Evaluation Modal */}
+      {showEvaluation && professionConfig && session && (
+        <SessionEvaluation
+          professionConfig={professionConfig}
+          apiConfig={apiConfig}
+          conversationHistory={session.conversationHistory}
+          diagnosis={session.diagnosis}
+          userAnswer={userFinalAnswer}
+          wasCorrect={feedback?.correct ?? false}
+          onNewSession={startNewSession}
+          onClose={handleCloseEvaluation}
+          onProgressSaved={refreshProgress}
+        />
+      )}
+
+      {/* Progress Screen */}
+      {appState === 'progress' && (
+        <ProgressScreen
+          progress={progress}
+          onBack={handleBackFromProgress}
+          onRefresh={refreshProgress}
+        />
+      )}
+
       {/* Profession Selection Screen */}
       {appState === 'profession-select' && (
         <ProfessionSelect 
           onSelect={handleProfessionSelect} 
           onOpenSettings={() => setShowSettings(true)}
+          onOpenProgress={handleShowProgress}
+          sessionCount={progress.sessions.length}
         />
       )}
 
@@ -327,6 +407,9 @@ function App() {
           <div className="header">
             <h1>{professionConfig.emoji} {professionConfig.title}</h1>
             <div className="header-buttons">
+              <button onClick={handleShowProgress} className="btn-secondary">
+                📊 Progress
+              </button>
               <button onClick={() => setShowSettings(true)} className="btn-secondary">
                 ⚙️ Settings
               </button>
@@ -383,6 +466,14 @@ function App() {
               >
                 {showAnswer ? '🙈 Hide Answer' : '👁️ Reveal Answer'}
               </button>
+              {feedback && (
+                <button 
+                  onClick={() => setShowEvaluation(true)} 
+                  className="btn-secondary"
+                >
+                  📊 View Evaluation
+                </button>
+              )}
               <button onClick={() => setShowSettings(true)} className="btn-secondary">
                 ⚙️ Settings
               </button>

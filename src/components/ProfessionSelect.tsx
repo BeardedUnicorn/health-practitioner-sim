@@ -4,18 +4,26 @@ import { professionConfigs } from '../config/professionConfig';
 interface ProfessionSelectProps {
   onSelect: (profession: Profession) => void;
   onOpenSettings: () => void;
+  onOpenProgress: () => void;
+  sessionCount: number;
 }
 
-export function ProfessionSelect({ onSelect, onOpenSettings }: ProfessionSelectProps) {
+export function ProfessionSelect({ onSelect, onOpenSettings, onOpenProgress, sessionCount }: ProfessionSelectProps) {
   const professions = Object.values(professionConfigs);
 
   return (
     <div className="profession-select-container">
       <div className="profession-header">
         <h1>🏥 Healthcare Training Simulator</h1>
-        <button onClick={onOpenSettings} className="btn-icon" title="Settings">
-          ⚙️
-        </button>
+        <div className="profession-header-buttons">
+          <button onClick={onOpenProgress} className="btn-icon" title="View Progress">
+            📊
+            {sessionCount > 0 && <span className="badge">{sessionCount}</span>}
+          </button>
+          <button onClick={onOpenSettings} className="btn-icon" title="Settings">
+            ⚙️
+          </button>
+        </div>
       </div>
       <p className="subtitle">Select your profession to begin training</p>
       

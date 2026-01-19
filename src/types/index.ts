@@ -47,3 +47,32 @@ export interface ApiConfig {
   apiKey: string;
   modelName: string;
 }
+
+// Progress tracking types
+export interface SessionRecord {
+  id: string;
+  timestamp: number;
+  profession: Profession;
+  category: string;
+  diagnosis: string;
+  userAnswer: string;
+  correct: boolean;
+  score: number;
+  summary: string;
+  strengths: string[];
+  gaps: string[];
+  safetyFlags: string[];
+}
+
+export interface ProfessionStats {
+  totalSessions: number;
+  correctSessions: number;
+  averageScore: number;
+  bestScore: number;
+  recentScores: number[];
+}
+
+export interface ProgressData {
+  sessions: SessionRecord[];
+  lastUpdated: number;
+}
