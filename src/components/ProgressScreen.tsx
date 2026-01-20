@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react';
-import { ProgressData, Profession, SessionRecord } from '../types';
+import { ProgressData, Profession, Difficulty, ClinicalSetting } from '../types';
 import { professionConfigs } from '../config/professionConfig';
-import { getOverallStats, getProfessionStats, getStreakInfo, clearProgress } from '../utils/progressStorage';
+import { getOverallStats, getProfessionStats, getStreakInfo, clearProgress, filterSessions, getUniqueCategories } from '../utils/progressStorage';
 
 interface ProgressScreenProps {
   progress: ProgressData;
@@ -11,25 +11,60 @@ interface ProgressScreenProps {
 
 type TabType = 'overview' | 'history' | 'professions';
 
+const DIFFICULTY_LABELS: Record<Difficulty, string> = {
+  beginner: 'Beginner',
+  intermediate: 'Intermediate',
+  advanced: 'Advanced'
+};
+
+const SETTING_LABELS: Record<ClinicalSetting, string> = {
+  clinic: 'Clinic',
+  emergency: 'Emergency',
+  telehealth: 'Telehealth',
+  inpatient: 'Inpatient',
+  labor_delivery: 'L&D',
+  home: 'Home',
+  birth_center: 'Birth Center'
+};
+
 export function ProgressScreen({ progress, onBack, onRefresh }: ProgressScreenProps) {
   const [activeTab, setActiveTab] = useState<TabType>('overview');
   const [selectedProfession, setSelectedProfession] = useState<Profession | 'all'>('all');
+  const [selectedCategory, setSelectedCategory] = useState<string | 'all'>('all');
+  const [selectedDifficulty, setSelectedDifficulty] = useState<Difficulty | 'all'>('all');
+  const [selectedSetting, setSelectedSetting] = useState<ClinicalSetting | 'all'>('all');
   const [showClearConfirm, setShowClearConfirm] = useState(false);
 
   const overallStats = useMemo(() => getOverallStats(progress.sessions), [progress.sessions]);
   const streakInfo = useMemo(() => getStreakInfo(progress.sessions), [progress.sessions]);
 
-  const filteredSessions = useMemo(() => {
-    if (selectedProfession === 'all') {
-      return progress.sessions;
-    }
-    return progress.sessions.filter(s => s.profession === selectedProfession);
+  const availableCategories = useMemo(() => {
+    const sessions = selectedProfession === 'all' 
+      ? progress.sessions 
+      : progress.sessions.filter(s => s.profession === selectedProfession);
+    return getUniqueCategories(sessions);
   }, [progress.sessions, selectedProfession]);
+
+  const filteredSessions = useMemo(() => {
+    return filterSessions(progress.sessions, {
+      profession: selectedProfession,
+      category: selectedCategory,
+      difficulty: selectedDifficulty,
+      setting: selectedSetting
+    });
+  }, [progress.sessions, selectedProfession, selectedCategory, selectedDifficulty, selectedSetting]);
 
   const handleClearProgress = () => {
     clearProgress();
     onRefresh();
     setShowClearConfirm(false);
+  };
+
+  const resetFilters = () => {
+    setSelectedProfession('all');
+    setSelectedCategory('all');
+    setSelectedDifficulty('all');
+    setSelectedSetting('all');
   };
 
   const formatDate = (timestamp: number) => {
@@ -61,6 +96,9 @@ export function ProgressScreen({ progress, onBack, onRefresh }: ProgressScreenPr
     if (score >= 60) return 'D';
     return 'F';
   };
+
+  const hasActiveFilters = selectedProfession !== 'all' || selectedCategory !== 'all' || 
+                           selectedDifficulty !== 'all' || selectedSetting !== 'all';
 
   return (
     <div className="progress-screen">
@@ -170,7 +208,7 @@ export function ProgressScreen({ progress, onBack, onRefresh }: ProgressScreenPr
                 <div className="streak-section">
                   <h3>🔥 Practice Streak</h3>
                   <div className="streak-cards">
-                    <div className="streak-car">
+                    <div className="streak-card">
                       <div className="streak-value">{streakInfo.currentStreak}</div>
                       <div className="streak-label">Current Streak</div>
                     </div>
@@ -286,30 +324,92 @@ export function ProgressScreen({ progress, onBack, onRefresh }: ProgressScreenPr
         {/* History Tab */}
         {activeTab === 'history' && (
           <div className="history-tab">
-            {/* Filter */}
-            <div className="history-filter">
-              <label>Filter by profession:</label>
-              <select 
-                value={selectedProfession} 
-                onChange={e => setSelectedProfession(e.target.value as Profession | 'all')}
-              >
-                <option value="all">All Professions</option>
-                {Object.values(professionConfigs).map(config => (
-                  <option key={config.id} value={config.id}>
-                    {config.emoji} {config.name}
-                  </option>
-                ))}
-              </select>
+            {/* Filters */}
+            <div className="history-filters">
+              <div className="filter-row">
+                <div className="filter-group">
+                  <label>Profession</label>
+                  <select 
+                    value={selectedProfession} 
+                    onChange={e => {
+                      setSelectedProfession(e.target.value as Profession | 'all');
+                      setSelectedCategory('all');
+                    }}
+                  >
+                    <option value="all">All Professions</option>
+                    {Object.values(professionConfigs).map(config => (
+                      <option key={config.id} value={config.id}>
+                        {config.emoji} {config.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="filter-group">
+                  <label>Category</label>
+                  <select 
+                    value={selectedCategory}
+                    onChange={e => setSelectedCategory(e.target.value)}
+                  >
+                    <option value="all">All Categories</option>
+                    {availableCategories.map(cat => (
+                      <option key={cat} value={cat}>{cat}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="filter-group">
+                  <label>Difficulty</label>
+                  <select 
+                    value={selectedDifficulty}
+                    onChange={e => setSelectedDifficulty(e.target.value as Difficulty | 'all')}
+                  >
+                    <option value="all">All Difficulties</option>
+                    {(Object.keys(DIFFICULTY_LABELS) as Difficulty[]).map(diff => (
+                      <option key={diff} value={diff}>{DIFFICULTY_LABELS[diff]}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="filter-group">
+                  <label>Setting</label>
+                  <select 
+                    value={selectedSetting}
+                    onChange={e => setSelectedSetting(e.target.value as ClinicalSetting | 'all')}
+                  >
+                    <option value="all">All Settings</option>
+                    {(Object.keys(SETTING_LABELS) as ClinicalSetting[]).map(setting => (
+                      <option key={setting} value={setting}>{SETTING_LABELS[setting]}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              {hasActiveFilters && (
+                <div className="filter-actions">
+                  <span className="filter-count">
+                    Showing {filteredSessions.length} of {progress.sessions.length} sessions
+                  </span>
+                  <button onClick={resetFilters} className="btn-reset-filters">
+                    ✕ Clear Filters
+                  </button>
+                </div>
+              )}
             </div>
 
             {filteredSessions.length === 0 ? (
               <div className="empty-state">
                 <span className="empty-icon">📜</span>
                 <h3>No sessions found</h3>
-                <p>{selectedProfession === 'all' 
+                <p>{progress.sessions.length === 0 
                   ? 'Complete your first training session to see it here.'
-                  : 'No sessions for this profession yet.'
+                  : 'No sessions match your current filters.'
                 }</p>
+                {hasActiveFilters && (
+                  <button onClick={resetFilters} className="btn-secondary">
+                    Clear Filters
+                  </button>
+                )}
               </div>
             ) : (
               <div className="history-list">
@@ -328,6 +428,24 @@ export function ProgressScreen({ progress, onBack, onRefresh }: ProgressScreenPr
                             <span className={`history-badge ${session.correct ? 'correct' : 'incorrect'}`}>
                               {session.correct ? '✓' : '✗'}
                             </span>
+                          </div>
+                          <div className="history-item-meta">
+                            {session.category && session.category !== 'Random' && (
+                              <span className="meta-tag category">{session.category.split('(')[0].trim()}</span>
+                            )}
+                            {session.difficulty && (
+                              <span className={`meta-tag difficulty-${session.difficulty}`}>
+                                {DIFFICULTY_LABELS[session.difficulty]}
+                              </span>
+                            )}
+                            {session.setting && (
+                              <span className="meta-tag setting">{SETTING_LABELS[session.setting]}</span>
+                            )}
+                            {session.timePressureEnabled && session.turnsUsed !== undefined && (
+                              <span className="meta-tag time-pressure">
+                                ⏱️ {session.turnsUsed}/{session.maxTurns}
+                              </span>
+                            )}
                           </div>
                           <div className="history-item-diagnosis">
                             {session.diagnosis}

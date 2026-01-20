@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import './App.css';
-import { Profession, PatientSession, ApiConfig, Message, ProgressData } from './types';
+import { Profession, PatientSession, ApiConfig, Message, ProgressData, CaseSetup, Difficulty, ClinicalSetting } from './types';
 import { professionConfigs } from './config/professionConfig';
 import { ProfessionSelect } from './components/ProfessionSelect';
 import { SettingsModal } from './components/SettingsModal';
@@ -11,9 +11,11 @@ import { Coach } from './components/Coach';
 import { LoadingSession } from './components/LoadingSession';
 import { SessionEvaluation } from './components/SessionEvaluation';
 import { ProgressScreen } from './components/ProgressScreen';
-import { loadProgress } from './utils/progressStorage';
+import { CaseSetupModal } from './components/CaseSetupModal';
+import { TurnCounter } from './components/TurnCounter';
+import { loadProgress, getProfessionPreferences } from './utils/progressStorage';
 
-type AppState = 'profession-select' | 'ready' | 'loading-session' | 'session' | 'progress';
+type AppState = 'profession-select' | 'ready' | 'case-setup' | 'loading-session' | 'session' | 'progress';
 
 function App() {
   const [appState, setAppState] = useState<AppState>('profession-select');
@@ -34,6 +36,9 @@ function App() {
   const [showCoach, setShowCoach] = useState(false);
   const [performingAssessment, setPerformingAssessment] = useState(false);
   const [coachWidth, setCoachWidth] = useState(350);
+  
+  // Case setup state
+  const [pendingCaseSetup, setPendingCaseSetup] = useState<CaseSetup | null>(null);
   
   // Evaluation state
   const [showEvaluation, setShowEvaluation] = useState(false);
@@ -78,6 +83,7 @@ function App() {
     setShowCoach(false);
     setShowEvaluation(false);
     setUserFinalAnswer('');
+    setPendingCaseSetup(null);
     setProfession(null);
     setAppState('profession-select');
   };
@@ -103,17 +109,53 @@ function App() {
       abortControllerRef.current.abort();
       abortControllerRef.current = null;
     }
+    setPendingCaseSetup(null);
     setAppState('ready');
   };
 
-  const startNewSession = async () => {
+  const handleOpenCaseSetup = () => {
+    setAppState('case-setup');
+  };
+
+  const handleCloseCaseSetup = () => {
+    setAppState('ready');
+  };
+
+  const handleStartWithSetup = (setup: CaseSetup) => {
+    setPendingCaseSetup(setup);
+    setAppState('loading-session');
+    startNewSessionWithSetup(setup);
+  };
+
+  const handleStartRandom = () => {
+    if (!professionConfig || !profession) return;
+    
+    // Get saved preferences for difficulty/setting but use random category
+    const prefs = getProfessionPreferences(profession);
+    
+    const setup: CaseSetup = {
+      profession,
+      category: professionConfig.categories[
+        Math.floor(Math.random() * professionConfig.categories.length)
+      ],
+      difficulty: prefs.lastDifficulty || 'beginner',
+      setting: prefs.lastSetting || professionConfig.defaultSetting,
+      timePressureEnabled: prefs.lastTimePressure || false,
+      maxTurns: prefs.lastMaxTurns || null,
+      createdAt: Date.now()
+    };
+    
+    setPendingCaseSetup(setup);
+    setAppState('loading-session');
+    startNewSessionWithSetup(setup);
+  };
+
+  const startNewSessionWithSetup = async (setup: CaseSetup) => {
     if (!professionConfig) return;
     
     // Create new abort controller
     abortControllerRef.current = new AbortController();
     
-    // Show loading page
-    setAppState('loading-session');
     setFeedback(null);
     setShowAnswer(false);
     setShowCoach(false);
@@ -121,11 +163,11 @@ function App() {
     setUserFinalAnswer('');
     
     try {
-      const randomCategory = professionConfig.categories[
-        Math.floor(Math.random() * professionConfig.categories.length)
-      ];
-      
-      const setupPrompt = professionConfig.getSetupPrompt(randomCategory);
+      const setupPrompt = professionConfig.getSetupPrompt(
+        setup.category,
+        setup.difficulty,
+        setup.setting
+      );
 
       const setupResponse = await fetch(`${apiConfig.apiUrl}/chat/completions`, {
         method: 'POST',
@@ -165,7 +207,11 @@ function App() {
         }
       }
       
-      const systemPrompt = professionConfig.getSystemPrompt(setupContent);
+      const systemPrompt = professionConfig.getSystemPrompt(
+        setupContent,
+        setup.difficulty,
+        setup.setting
+      );
 
       let initialGreeting: string;
       
@@ -191,7 +237,9 @@ function App() {
 
       setSession({
         diagnosis: diagnosis,
-        conversationHistory: initialHistory
+        conversationHistory: initialHistory,
+        caseSetup: setup,
+        turnsUsed: 0
       });
       
       // Clear abort controller on success
@@ -202,7 +250,7 @@ function App() {
       // Check if it was aborted
       if (error instanceof Error && error.name === 'AbortError') {
         console.log('Request was cancelled');
-        return; // Already handled by handleCancelLoading
+        return;
       }
       
       const message = error instanceof Error ? error.message : String(error);
@@ -212,8 +260,14 @@ function App() {
       abortControllerRef.current = null;
       
       // Go back to ready state on error
+      setPendingCaseSetup(null);
       setAppState('ready');
     }
+  };
+
+  // Legacy start function for backwards compatibility
+  const startNewSession = () => {
+    handleOpenCaseSetup();
   };
 
   const sendMessage = async () => {
@@ -221,6 +275,9 @@ function App() {
 
     const userMessage = currentMessage.trim();
     setCurrentMessage('');
+
+    // Increment turns used
+    const newTurnsUsed = (session.turnsUsed || 0) + 1;
 
     // Immediately add user message to conversation
     const updatedHistoryWithUserMessage: Message[] = [
@@ -230,7 +287,8 @@ function App() {
 
     setSession({
       ...session,
-      conversationHistory: updatedHistoryWithUserMessage
+      conversationHistory: updatedHistoryWithUserMessage,
+      turnsUsed: newTurnsUsed
     });
 
     const diagnosisMatch = userMessage.match(professionConfig.diagnosisPattern);
@@ -255,6 +313,15 @@ function App() {
         setShowEvaluation(true);
       }, 500);
       
+      return;
+    }
+
+    // Check if time pressure limit reached after this turn
+    if (session.caseSetup?.timePressureEnabled && 
+        session.caseSetup.maxTurns && 
+        newTurnsUsed >= session.caseSetup.maxTurns) {
+      // Don't send the message to the API, force diagnosis
+      setSession(prev => prev ? { ...prev, turnsUsed: newTurnsUsed } : null);
       return;
     }
 
@@ -291,7 +358,8 @@ function App() {
           conversationHistory: [
             ...prevSession.conversationHistory,
             { role: 'assistant', content: assistantMessage }
-          ]
+          ],
+          turnsUsed: newTurnsUsed
         };
       });
     } catch (error) {
@@ -302,10 +370,28 @@ function App() {
     }
   };
 
+  const handleForceSubmit = () => {
+    if (!session || !professionConfig) return;
+    
+    // Auto-submit with "time ran out" answer
+    setUserFinalAnswer('Time ran out - no diagnosis submitted');
+    setFeedback({
+      correct: false,
+      message: `⏱️ Time ran out! The ${professionConfig.patientLabel.toLowerCase()}'s condition was ${session.diagnosis}.`
+    });
+    
+    setTimeout(() => {
+      setShowEvaluation(true);
+    }, 500);
+  };
+
   const performAssessment = async (assessmentType: string, assessmentName: string) => {
     if (!session || !professionConfig || performingAssessment) return;
 
     setPerformingAssessment(true);
+
+    // Increment turns for assessments too
+    const newTurnsUsed = (session.turnsUsed || 0) + 1;
 
     // Immediately add the assessment action to conversation
     const assessmentAction: Message = { role: 'user', content: `[Performed ${assessmentName}]` };
@@ -317,9 +403,18 @@ function App() {
         conversationHistory: [
           ...prevSession.conversationHistory,
           assessmentAction
-        ]
+        ],
+        turnsUsed: newTurnsUsed
       };
     });
+
+    // Check if time pressure limit reached
+    if (session.caseSetup?.timePressureEnabled && 
+        session.caseSetup.maxTurns && 
+        newTurnsUsed >= session.caseSetup.maxTurns) {
+      setPerformingAssessment(false);
+      return;
+    }
 
     const assessmentPrompt = professionConfig.getAssessmentPrompt(
       session.diagnosis, 
@@ -379,12 +474,19 @@ function App() {
     setShowCoach(false);
     setShowEvaluation(false);
     setUserFinalAnswer('');
+    setPendingCaseSetup(null);
     setAppState('ready');
   };
 
   const handleCloseEvaluation = () => {
     setShowEvaluation(false);
   };
+
+  // Check if turns are exhausted
+  const turnsExhausted = session?.caseSetup?.timePressureEnabled && 
+                         session?.caseSetup?.maxTurns && 
+                         (session?.turnsUsed || 0) >= session.caseSetup.maxTurns &&
+                         !feedback;
 
   // Get last 5 messages for coach context
   const recentConversation = session ? session.conversationHistory
@@ -404,6 +506,17 @@ function App() {
         />
       )}
 
+      {/* Case Setup Modal */}
+      {appState === 'case-setup' && professionConfig && profession && (
+        <CaseSetupModal
+          profession={profession}
+          professionConfig={professionConfig}
+          onStart={handleStartWithSetup}
+          onStartRandom={handleStartRandom}
+          onClose={handleCloseCaseSetup}
+        />
+      )}
+
       {/* Evaluation Modal */}
       {showEvaluation && professionConfig && session && (
         <SessionEvaluation
@@ -413,7 +526,12 @@ function App() {
           diagnosis={session.diagnosis}
           userAnswer={userFinalAnswer}
           wasCorrect={feedback?.correct ?? false}
-          onNewSession={startNewSession}
+          caseSetup={session.caseSetup}
+          turnsUsed={session.turnsUsed}
+          onNewSession={() => {
+            setShowEvaluation(false);
+            handleOpenCaseSetup();
+          }}
           onClose={handleCloseEvaluation}
           onProgressSaved={refreshProgress}
         />
@@ -458,7 +576,7 @@ function App() {
           <SessionStart
             professionConfig={professionConfig}
             isLoading={false}
-            onStart={startNewSession}
+            onStart={handleOpenCaseSetup}
           />
         </>
       )}
@@ -488,7 +606,7 @@ function App() {
             <h1>{professionConfig.emoji} {professionConfig.title}</h1>
             <div className="header-buttons">
               <button 
-                onClick={startNewSession} 
+                onClick={handleOpenCaseSetup} 
                 className="btn-secondary" 
                 disabled={isLoading}
               >
@@ -529,6 +647,24 @@ function App() {
             </div>
           )}
 
+          {/* Case Setup Info Banner */}
+          {session.caseSetup && (
+            <div className="case-setup-banner">
+              <span className="setup-tag category">
+                📋 {session.caseSetup.category.split('(')[0].trim()}
+              </span>
+              <span className={`setup-tag difficulty-${session.caseSetup.difficulty}`}>
+                {session.caseSetup.difficulty === 'beginner' && '🟢'}
+                {session.caseSetup.difficulty === 'intermediate' && '🟡'}
+                {session.caseSetup.difficulty === 'advanced' && '🔴'}
+                {' '}{session.caseSetup.difficulty.charAt(0).toUpperCase() + session.caseSetup.difficulty.slice(1)}
+              </span>
+              <span className="setup-tag setting">
+                🏥 {session.caseSetup.setting.replace('_', ' ')}
+              </span>
+            </div>
+          )}
+
           <div className="session-container">
             {showToolkit && (
               <div className="side-panel toolkit-panel">
@@ -556,9 +692,21 @@ function App() {
               showCoach={showCoach}
               onMessageChange={setCurrentMessage}
               onSend={sendMessage}
-              onNewSession={startNewSession}
+              onNewSession={handleOpenCaseSetup}
               onToggleCoach={() => setShowCoach(!showCoach)}
+              disabled={turnsExhausted}
             />
+
+            {/* Turn Counter for Time Pressure Mode */}
+            {session.caseSetup?.timePressureEnabled && session.caseSetup.maxTurns && !feedback && (
+              <div className="turn-counter-container">
+                <TurnCounter
+                  turnsUsed={session.turnsUsed || 0}
+                  maxTurns={session.caseSetup.maxTurns}
+                  onForceSubmit={handleForceSubmit}
+                />
+              </div>
+            )}
 
             {showCoach && (
               <>

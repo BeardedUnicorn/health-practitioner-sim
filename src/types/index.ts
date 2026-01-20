@@ -1,13 +1,29 @@
 export type Profession = 'nurse' | 'psychiatrist' | 'psychologist' | 'therapist' | 'doula' | 'pregnancyPartner';
 
+export type Difficulty = 'beginner' | 'intermediate' | 'advanced';
+
+export type ClinicalSetting = 'clinic' | 'emergency' | 'telehealth' | 'inpatient' | 'labor_delivery' | 'home' | 'birth_center';
+
 export interface Message {
   role: 'user' | 'assistant' | 'system';
   content: string;
 }
 
+export interface CaseSetup {
+  profession: Profession;
+  category: string;
+  difficulty: Difficulty;
+  setting: ClinicalSetting;
+  timePressureEnabled: boolean;
+  maxTurns: number | null;
+  createdAt: number;
+}
+
 export interface PatientSession {
   diagnosis: string;
   conversationHistory: Message[];
+  caseSetup?: CaseSetup;
+  turnsUsed?: number;
 }
 
 export interface ToolkitItem {
@@ -37,8 +53,10 @@ export interface ProfessionConfig {
   diagnosisHint: string;
   diagnosisPattern: RegExp;
   toolkit: ToolkitSection[];
-  getSetupPrompt: (category: string) => string;
-  getSystemPrompt: (setupContent: string) => string;
+  supportedSettings: ClinicalSetting[];
+  defaultSetting: ClinicalSetting;
+  getSetupPrompt: (category: string, difficulty?: Difficulty, setting?: ClinicalSetting) => string;
+  getSystemPrompt: (setupContent: string, difficulty?: Difficulty, setting?: ClinicalSetting) => string;
   getAssessmentPrompt: (diagnosis: string, assessmentName: string, assessmentType: string) => string;
 }
 
@@ -54,6 +72,11 @@ export interface SessionRecord {
   timestamp: number;
   profession: Profession;
   category: string;
+  difficulty?: Difficulty;
+  setting?: ClinicalSetting;
+  timePressureEnabled?: boolean;
+  maxTurns?: number | null;
+  turnsUsed?: number;
   diagnosis: string;
   userAnswer: string;
   correct: boolean;
@@ -75,4 +98,14 @@ export interface ProfessionStats {
 export interface ProgressData {
   sessions: SessionRecord[];
   lastUpdated: number;
+}
+
+export interface CaseSetupPreferences {
+  [profession: string]: {
+    lastCategory?: string;
+    lastDifficulty?: Difficulty;
+    lastSetting?: ClinicalSetting;
+    lastTimePressure?: boolean;
+    lastMaxTurns?: number;
+  };
 }

@@ -10,6 +10,7 @@ interface ChatContainerProps {
   isLoading: boolean;
   feedback: { correct: boolean; message: string } | null;
   showCoach: boolean;
+  disabled?: boolean;
   onMessageChange: (message: string) => void;
   onSend: () => void;
   onNewSession: () => void;
@@ -23,6 +24,7 @@ export function ChatContainer({
   isLoading,
   feedback,
   showCoach,
+  disabled,
   onMessageChange,
   onSend,
   onNewSession,
@@ -44,6 +46,8 @@ export function ChatContainer({
       onSend();
     }
   };
+
+  const isInputDisabled = isLoading || !!feedback || disabled;
 
   return (
     <div className="chat-container">
@@ -78,6 +82,12 @@ export function ChatContainer({
         </div>
       )}
 
+      {disabled && !feedback && (
+        <div className="feedback warning">
+          ⏱️ Time's up! Submit your diagnosis now.
+        </div>
+      )}
+
       <div className="input-container">
         <button 
           onClick={onToggleCoach} 
@@ -91,8 +101,11 @@ export function ChatContainer({
           value={currentMessage}
           onChange={(e) => onMessageChange(e.target.value)}
           onKeyPress={handleKeyPress}
-          placeholder={`Ask the ${professionConfig.patientLabel.toLowerCase()} a question...`}
-          disabled={isLoading || !!feedback}
+          placeholder={disabled 
+            ? 'Submit your diagnosis...' 
+            : `Ask the ${professionConfig.patientLabel.toLowerCase()} a question...`
+          }
+          disabled={isInputDisabled && !disabled}
         />
         <button 
           onClick={onSend} 

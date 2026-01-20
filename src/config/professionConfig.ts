@@ -1,4 +1,79 @@
-import { ProfessionConfig } from '../types';
+import { ProfessionConfig, Difficulty, ClinicalSetting } from '../types';
+
+const getDifficultyInstructions = (difficulty?: Difficulty): string => {
+  switch (difficulty) {
+    case 'beginner':
+      return `DIFFICULTY: BEGINNER
+- Present classic, textbook symptoms
+- Be a clear historian who answers questions directly
+- No significant comorbidities or confounding factors
+- Symptoms clearly point to the diagnosis`;
+    case 'intermediate':
+      return `DIFFICULTY: INTERMEDIATE
+- Include 1-2 comorbidities that may complicate the picture
+- Some symptoms may be atypical or ambiguous
+- May have mild anxiety about symptoms that affects presentation
+- Include relevant but potentially distracting past medical history`;
+    case 'advanced':
+      return `DIFFICULTY: ADVANCED
+- Be a poor historian: vague, tangential, or inconsistent at times
+- Include conflicting information that requires clarification
+- Add red herrings or distracting symptoms unrelated to main diagnosis
+- May minimize or exaggerate certain symptoms
+- May have cultural or personal beliefs affecting symptom description
+- Can be emotionally distressed, making history-taking challenging`;
+    default:
+      return '';
+  }
+};
+
+const getSettingInstructions = (setting?: ClinicalSetting): string => {
+  switch (setting) {
+    case 'telehealth':
+      return `SETTING: TELEHEALTH/VIRTUAL
+- You are speaking via video call
+- Physical examination is limited to what can be observed on camera
+- May have occasional technical difficulties (brief lag, unclear audio)
+- Describe visible symptoms when asked but remind them you can't be physically examined
+- May need to self-report vital signs if you have equipment at home`;
+    case 'emergency':
+      return `SETTING: EMERGENCY DEPARTMENT
+- You came to the ED because symptoms are acute/severe
+- Show appropriate urgency and distress
+- May be in pain or discomfort that affects your responses
+- Other patients and noise may be referenced
+- Time feels critical`;
+    case 'inpatient':
+      return `SETTING: INPATIENT/HOSPITAL
+- You are already admitted to the hospital
+- May be fatigued from being in the hospital
+- Can reference other staff who have seen you
+- May have IV, monitors, or other equipment`;
+    case 'home':
+      return `SETTING: HOME VISIT
+- The clinician has come to your home
+- You are in your comfortable environment
+- Home environment details can be observed
+- May have family members present`;
+    case 'labor_delivery':
+      return `SETTING: LABOR & DELIVERY
+- You are in a birthing setting
+- Contractions or labor progress affect your responses
+- May need breaks during intense moments
+- Support people may be present`;
+    case 'birth_center':
+      return `SETTING: BIRTH CENTER
+- Low-intervention birthing environment
+- More home-like setting
+- Midwifery model of care`;
+    case 'clinic':
+    default:
+      return `SETTING: OUTPATIENT CLINIC
+- Standard clinical environment
+- Full examination capabilities available
+- Routine appointment setting`;
+  }
+};
 
 export const nurseConfig: ProfessionConfig = {
   id: 'nurse',
@@ -12,6 +87,8 @@ export const nurseConfig: ProfessionConfig = {
   patientEmoji: '🤒',
   diagnosisHint: '💡 Tip: When ready to diagnose, type "You have [condition]"',
   diagnosisPattern: /you\s+have\s+(.+)/i,
+  supportedSettings: ['clinic', 'emergency', 'telehealth', 'inpatient'],
+  defaultSetting: 'clinic',
   categories: [
     'Cardiovascular (e.g., heart failure, hypertensive crisis, angina, DVT, atrial fibrillation, myocardial infarction)',
     'Respiratory (e.g., pneumonia, COPD exacerbation, asthma attack, pulmonary embolism, bronchitis, tuberculosis)',
@@ -86,11 +163,14 @@ export const nurseConfig: ProfessionConfig = {
       ]
     }
   ],
-  getSetupPrompt: (category: string) => `You are a medical education system. Generate a realistic patient scenario for nurse training.
+  getSetupPrompt: (category: string, difficulty?: Difficulty, setting?: ClinicalSetting) => `You are a medical education system. Generate a realistic patient scenario for nurse training.
 
 IMPORTANT: You MUST select a condition from this category: ${category}
 Do NOT use Type 2 Diabetes or any diabetic condition unless the category specifically mentions it.
 Be creative and pick different conditions each time.
+
+${getDifficultyInstructions(difficulty)}
+${getSettingInstructions(setting)}
 
 You must respond in EXACTLY this format (including the labels):
 DIAGNOSIS: [the specific medical condition/diagnosis from the category above]
@@ -104,10 +184,13 @@ SYMPTOMS: Severe abdominal pain in lower right quadrant, nausea, low-grade fever
 
 Now generate a patient with a condition from the ${category} category:`,
 
-  getSystemPrompt: (setupContent: string) => `You are ONLY roleplaying as a PATIENT, not a nurse or doctor. You are sick and seeking help.
+  getSystemPrompt: (setupContent: string, difficulty?: Difficulty, setting?: ClinicalSetting) => `You are ONLY roleplaying as a PATIENT, not a nurse or doctor. You are sick and seeking help.
 
 YOUR PATIENT PROFILE AND CONDITION:
 ${setupContent}
+
+${getDifficultyInstructions(difficulty)}
+${getSettingInstructions(setting)}
 
 CRITICAL INSTRUCTIONS - YOU MUST FOLLOW THESE:
 1. You ARE the patient described above. Speak in first person as the patient.
@@ -142,6 +225,8 @@ export const psychiatristConfig: ProfessionConfig = {
   patientEmoji: '😔',
   diagnosisHint: '💡 Tip: When ready to diagnose, type "My diagnosis is [condition]"',
   diagnosisPattern: /my\s+diagnosis\s+is\s+(.+)/i,
+  supportedSettings: ['clinic', 'emergency', 'telehealth', 'inpatient'],
+  defaultSetting: 'clinic',
   categories: [
     'Mood Disorders (e.g., Major Depressive Disorder, Bipolar I, Bipolar II, Cyclothymia, Persistent Depressive Disorder)',
     'Anxiety Disorders (e.g., Generalized Anxiety Disorder, Panic Disorder, Social Anxiety, Specific Phobias, Agoraphobia)',
@@ -213,10 +298,13 @@ export const psychiatristConfig: ProfessionConfig = {
       ]
     }
   ],
-  getSetupPrompt: (category: string) => `You are a psychiatric education system. Generate a realistic patient scenario for psychiatry residency training.
+  getSetupPrompt: (category: string, difficulty?: Difficulty, setting?: ClinicalSetting) => `You are a psychiatric education system. Generate a realistic patient scenario for psychiatry residency training.
 
 IMPORTANT: You MUST select a condition from this category: ${category}
 Be creative and pick different presentations each time. Include realistic psychosocial context.
+
+${getDifficultyInstructions(difficulty)}
+${getSettingInstructions(setting)}
 
 You must respond in EXACTLY this format (including the labels):
 DIAGNOSIS: [the specific DSM-5 diagnosis from the category above]
@@ -225,19 +313,15 @@ PRESENTING_COMPLAINT: [the patient's chief complaint in their own words]
 SYMPTOMS: [list of psychiatric symptoms consistent with the diagnosis]
 HISTORY: [relevant psychiatric history, substance use, and recent stressors]
 
-Example format:
-DIAGNOSIS: Major Depressive Disorder, Single Episode, Severe
-PATIENT_PROFILE: 34-year-old female, accountant, recently divorced
-PRESENTING_COMPLAINT: "I can't get out of bed anymore and I don't see the point in anything"
-SYMPTOMS: Depressed mood daily, anhedonia, insomnia, poor concentration, feelings of worthlessness, passive suicidal ideation without plan
-HISTORY: No prior psychiatric treatment, social drinker, recently finalized divorce after husband's affair
-
 Now generate a patient with a condition from the ${category} category:`,
 
-  getSystemPrompt: (setupContent: string) => `You are roleplaying as a psychiatric PATIENT seeking help for mental health concerns.
+  getSystemPrompt: (setupContent: string, difficulty?: Difficulty, setting?: ClinicalSetting) => `You are roleplaying as a psychiatric PATIENT seeking help for mental health concerns.
 
 YOUR PATIENT PROFILE AND CONDITION:
 ${setupContent}
+
+${getDifficultyInstructions(difficulty)}
+${getSettingInstructions(setting)}
 
 CRITICAL INSTRUCTIONS:
 1. You ARE the patient. Speak in first person about your experiences.
@@ -248,8 +332,8 @@ CRITICAL INSTRUCTIONS:
 6. Do NOT use clinical terminology or diagnose yourself.
 7. Do NOT reveal the diagnosis. You are seeking help because you're struggling.
 8. Keep responses realistic - some patients are poor historians, vague, or tangential.
-9. Respond to mental status exam questions naturally (you might not know the date, or might be distracted).
-10. For sensitive topics (suicide, trauma), respond as a real patient would - may need rapport first.
+9. Respond to mental status exam questions naturally.
+10. For sensitive topics (suicide, trauma), respond as a real patient would.
 
 Remember: You are the PATIENT. The user is the PSYCHIATRIST evaluating you.`,
 
@@ -257,10 +341,6 @@ Remember: You are the PATIENT. The user is the PSYCHIATRIST evaluating you.`,
     `Based on the patient's psychiatric condition (${diagnosis}), provide realistic ${assessmentName} results for a ${assessmentType} assessment.
 
 Respond with findings in clinical psychiatric format. Be specific and use appropriate terminology. Keep it to 2-4 sentences.
-
-For screening tools, provide a realistic score and key positive items.
-For mental status exam components, describe specific observations.
-For risk assessments, include specific risk and protective factors.
 
 Provide the ${assessmentName} findings now:`
 };
@@ -277,6 +357,8 @@ export const psychologistConfig: ProfessionConfig = {
   patientEmoji: '🙂',
   diagnosisHint: '💡 Tip: When ready for case conceptualization, type "My assessment is [formulation]"',
   diagnosisPattern: /my\s+assessment\s+is\s+(.+)/i,
+  supportedSettings: ['clinic', 'telehealth'],
+  defaultSetting: 'clinic',
   categories: [
     'Depression & Mood (e.g., Major Depression, Persistent Depressive Disorder, Seasonal Affective Disorder)',
     'Anxiety & Fear (e.g., Generalized Anxiety, Social Anxiety, Panic Disorder, Specific Phobias)',
@@ -346,10 +428,13 @@ export const psychologistConfig: ProfessionConfig = {
       ]
     }
   ],
-  getSetupPrompt: (category: string) => `You are a clinical psychology education system. Generate a realistic client scenario for psychology training.
+  getSetupPrompt: (category: string, difficulty?: Difficulty, setting?: ClinicalSetting) => `You are a clinical psychology education system. Generate a realistic client scenario for psychology training.
 
 IMPORTANT: You MUST select a presentation from this category: ${category}
 Include realistic psychological and contextual factors. Vary presentations.
+
+${getDifficultyInstructions(difficulty)}
+${getSettingInstructions(setting)}
 
 You must respond in EXACTLY this format (including the labels):
 DIAGNOSIS: [the primary clinical issue/diagnosis]
@@ -359,20 +444,15 @@ SYMPTOMS: [psychological and behavioral symptoms]
 BACKGROUND: [relevant history, triggers, maintaining factors]
 STRENGTHS: [client strengths and protective factors]
 
-Example format:
-DIAGNOSIS: Generalized Anxiety Disorder with perfectionism
-CLIENT_PROFILE: 29-year-old non-binary individual, software developer, living with partner
-PRESENTING_CONCERN: "I can't stop worrying about everything and it's affecting my relationship"
-SYMPTOMS: Chronic worry, muscle tension, sleep difficulties, irritability, difficulty concentrating, reassurance-seeking
-BACKGROUND: High-achieving family, history of academic pressure, recent promotion increased responsibilities
-STRENGTHS: Insightful, motivated for change, supportive partner, good problem-solving skills
-
 Now generate a client with a presentation from the ${category} category:`,
 
-  getSystemPrompt: (setupContent: string) => `You are roleplaying as a CLIENT seeking psychological help.
+  getSystemPrompt: (setupContent: string, difficulty?: Difficulty, setting?: ClinicalSetting) => `You are roleplaying as a CLIENT seeking psychological help.
 
 YOUR CLIENT PROFILE:
 ${setupContent}
+
+${getDifficultyInstructions(difficulty)}
+${getSettingInstructions(setting)}
 
 CRITICAL INSTRUCTIONS:
 1. You ARE the client. Speak naturally about your experiences and feelings.
@@ -383,7 +463,7 @@ CRITICAL INSTRUCTIONS:
 6. Do NOT use clinical or psychological jargon.
 7. Do NOT reveal the "diagnosis" - you're here because you're struggling.
 8. Be genuine - you might minimize, deflect, or become emotional.
-9. Respond to questions thoughtfully but naturally - real clients take time to reflect.
+9. Respond to questions thoughtfully but naturally.
 10. You can show ambivalence about change - that's realistic.
 
 Remember: You are the CLIENT. The user is the PSYCHOLOGIST working with you.`,
@@ -392,10 +472,6 @@ Remember: You are the CLIENT. The user is the PSYCHOLOGIST working with you.`,
     `Based on the client's presentation (${diagnosis}), provide realistic ${assessmentName} results for a ${assessmentType} assessment.
 
 Respond with findings appropriate for a psychological report. Be specific and clinically relevant. Keep it to 2-4 sentences.
-
-For psychological measures, provide a realistic score range and interpretation.
-For observations, describe specific behavioral observations.
-For interview data, summarize key clinical information.
 
 Provide the ${assessmentName} findings now:`
 };
@@ -412,6 +488,8 @@ export const therapistConfig: ProfessionConfig = {
   patientEmoji: '🗨️',
   diagnosisHint: '💡 Tip: When ready for treatment planning, type "My treatment plan is [approach]"',
   diagnosisPattern: /my\s+treatment\s+plan\s+is\s+(.+)/i,
+  supportedSettings: ['clinic', 'telehealth'],
+  defaultSetting: 'clinic',
   categories: [
     'CBT Candidates (e.g., anxiety disorders, depression, phobias, panic disorder)',
     'DBT Candidates (e.g., borderline personality, emotional dysregulation, self-harm)',
@@ -480,10 +558,13 @@ export const therapistConfig: ProfessionConfig = {
       ]
     }
   ],
-  getSetupPrompt: (category: string) => `You are a therapy education system. Generate a realistic client scenario for therapy training.
+  getSetupPrompt: (category: string, difficulty?: Difficulty, setting?: ClinicalSetting) => `You are a therapy education system. Generate a realistic client scenario for therapy training.
 
 IMPORTANT: You MUST select a presentation suitable for: ${category}
 Create a client who would benefit from this therapeutic approach.
+
+${getDifficultyInstructions(difficulty)}
+${getSettingInstructions(setting)}
 
 You must respond in EXACTLY this format (including the labels):
 DIAGNOSIS: [the primary presenting issue and treatment focus]
@@ -494,21 +575,15 @@ HISTORY: [relevant history, previous therapy, what has/hasn't worked]
 GOALS: [what the client hopes to achieve in therapy]
 READINESS: [stage of change - precontemplation/contemplation/preparation/action/maintenance]
 
-Example format:
-DIAGNOSIS: Generalized Anxiety Disorder - CBT candidate
-CLIENT_PROFILE: 32-year-old female, marketing manager, married with one child
-PRESENTING_CONCERN: "My anxiety is controlling my life and I need to learn how to manage it"
-SYMPTOMS: Constant worry, physical tension, sleep problems, avoidance of work presentations, irritability
-HISTORY: No previous therapy, tried meditation apps with minimal success, anxiety worsened after promotion
-GOALS: Manage anxiety without medication, return to normal work functioning, improve family relationships
-READINESS: Preparation stage - ready to learn and practice new skills
-
 Now generate a client for ${category} therapy:`,
 
-  getSystemPrompt: (setupContent: string) => `You are roleplaying as a therapy CLIENT seeking help.
+  getSystemPrompt: (setupContent: string, difficulty?: Difficulty, setting?: ClinicalSetting) => `You are roleplaying as a therapy CLIENT seeking help.
 
 YOUR CLIENT PROFILE:
 ${setupContent}
+
+${getDifficultyInstructions(difficulty)}
+${getSettingInstructions(setting)}
 
 CRITICAL INSTRUCTIONS:
 1. You ARE the client in therapy. Speak naturally about your experiences.
@@ -516,7 +591,7 @@ CRITICAL INSTRUCTIONS:
 3. Respond to therapeutic interventions realistically - change takes time.
 4. Show appropriate readiness for change based on your profile.
 5. You can be ambivalent, resistant, or eager depending on the context.
-6. Respond to techniques appropriately (e.g., try exercises, express doubts, ask questions).
+6. Respond to techniques appropriately.
 7. Do NOT use clinical terminology unless you would realistically know it.
 8. Build on previous session content and show gradual progress.
 9. Express both thoughts AND feelings naturally.
@@ -527,9 +602,6 @@ Remember: You are the CLIENT. The user is the THERAPIST working with you.`,
   getAssessmentPrompt: (diagnosis: string, assessmentName: string, assessmentType: string) => 
     `Based on the client's presentation (${diagnosis}), provide realistic ${assessmentName} results for a ${assessmentType} intervention.
 
-For techniques: Describe the client's response to the intervention.
-For assessments: Provide relevant clinical observations.
-For planning: Outline specific, actionable items.
 Keep it to 2-4 sentences, clinically relevant and realistic.
 
 Provide the ${assessmentName} outcome now:`
@@ -548,6 +620,8 @@ export const doulaConfig: ProfessionConfig = {
   patientEmoji: '🤰',
   diagnosisHint: '💡 Tip: When ready to provide your birth support plan, type "My support plan is [approach]"',
   diagnosisPattern: /my\s+support\s+plan\s+is\s+(.+)/i,
+  supportedSettings: ['labor_delivery', 'home', 'birth_center', 'inpatient'],
+  defaultSetting: 'labor_delivery',
   categories: [
     'Early Labor Support (e.g., first-time parent, anxious about labor, seeking natural birth)',
     'Active Labor Support (e.g., pain management, position changes, breathing techniques)',
@@ -651,10 +725,13 @@ export const doulaConfig: ProfessionConfig = {
       ]
     }
   ],
-  getSetupPrompt: (category: string) => `You are a birth doula education system. Generate a realistic birthing person scenario for doula training.
+  getSetupPrompt: (category: string, difficulty?: Difficulty, setting?: ClinicalSetting) => `You are a birth doula education system. Generate a realistic birthing person scenario for doula training.
 
 IMPORTANT: You MUST create a scenario from this category: ${category}
 Create a realistic pregnant person with specific needs, preferences, and circumstances.
+
+${getDifficultyInstructions(difficulty)}
+${getSettingInstructions(setting)}
 
 You must respond in EXACTLY this format (including the labels):
 SITUATION: [the specific birth scenario and stage of labor/pregnancy]
@@ -665,28 +742,22 @@ CURRENT_STATUS: [where they are in labor/pregnancy, what's happening now, emotio
 CONCERNS: [specific fears, challenges, or issues that need doula support]
 MEDICAL_CONTEXT: [any relevant medical history, current complications, provider recommendations]
 
-Example format:
-SITUATION: Active labor, first baby, seeking natural unmedicated birth in hospital
-BIRTHING_PERSON_PROFILE: 28-year-old, 40 weeks pregnant, G1P0, healthy pregnancy, took childbirth classes
-SUPPORT_SYSTEM: Partner present but anxious and unsure how to help, mother arriving soon
-BIRTH_PREFERENCES: Wants to avoid epidural, prefers movement and water, wants delayed cord clamping, skin-to-skin immediately
-CURRENT_STATUS: 5cm dilated, contractions every 3-4 minutes, coping but starting to doubt ability to continue without pain medication
-CONCERNS: Fear of losing control, worried about disappointing partner if needs epidural, back pain increasing
-MEDICAL_CONTEXT: No complications, healthy baby, provider supportive of birth preferences
-
 Now generate a birthing person scenario for ${category}:`,
 
-  getSystemPrompt: (setupContent: string) => `You are roleplaying as a BIRTHING PERSON in labor or during pregnancy seeking doula support.
+  getSystemPrompt: (setupContent: string, difficulty?: Difficulty, setting?: ClinicalSetting) => `You are roleplaying as a BIRTHING PERSON in labor or during pregnancy seeking doula support.
 
 YOUR SCENARIO:
 ${setupContent}
 
+${getDifficultyInstructions(difficulty)}
+${getSettingInstructions(setting)}
+
 CRITICAL INSTRUCTIONS:
 1. You ARE the birthing person. Speak from your experience in first person.
 2. You are talking TO a doula who is supporting you.
-3. Express your physical sensations honestly (contractions, pain, pressure, fatigue).
-4. Show your emotional state realistically (fear, excitement, doubt, determination, overwhelm).
-5. Respond to comfort measures and suggestions - some will help, some may not.
+3. Express your physical sensations honestly.
+4. Show your emotional state realistically.
+5. Respond to comfort measures and suggestions.
 6. You can be vulnerable, scared, or confident depending on the moment.
 7. Labor changes you - you might become more internal/quiet as it intensifies.
 8. Ask questions when you need information or reassurance.
@@ -695,17 +766,10 @@ CRITICAL INSTRUCTIONS:
 11. You may become less verbal during intense contractions.
 12. Show appreciation for support that helps you.
 
-Remember: You are the BIRTHING PERSON. The user is the DOULA supporting you through this birth experience.`,
+Remember: You are the BIRTHING PERSON. The user is the DOULA supporting you.`,
 
   getAssessmentPrompt: (diagnosis: string, assessmentName: string, assessmentType: string) => 
     `Based on the birthing person's situation (${diagnosis}), provide realistic ${assessmentName} guidance for a ${assessmentType} support intervention.
-
-For physical support: Describe specific positions, movements, or techniques to use now.
-For comfort measures: Explain how to apply this technique for their current situation.
-For emotional support: Provide specific words, affirmations, or approaches.
-For informational support: Give clear, accurate information appropriate to their situation.
-For advocacy: Suggest how to support their preferences with medical team.
-For assessment: Describe what you observe and what it means.
 
 Keep it to 2-4 sentences, practical and specific to this birth.
 
@@ -724,6 +788,8 @@ export const pregnancyPartnerConfig: ProfessionConfig = {
   patientEmoji: '🤰',
   diagnosisHint: '💡 Tip: When you understand what they need, type "What they need is [specific need]"',
   diagnosisPattern: /what\s+they\s+need\s+is\s+(.+)/i,
+  supportedSettings: ['home'],
+  defaultSetting: 'home',
   categories: [
     'First Trimester - Morning Sickness (e.g., nausea, food aversions, sensitivity to smells, fatigue)',
     'First Trimester - Fatigue & Exhaustion (e.g., extreme tiredness, need for extra sleep, low energy)',
@@ -816,114 +882,53 @@ export const pregnancyPartnerConfig: ProfessionConfig = {
       ]
     }
   ],
-  getSetupPrompt: (category: string) => `You are a pregnancy partner support education system. Generate a realistic scenario for partner support training.
+  getSetupPrompt: (category: string, difficulty?: Difficulty, setting?: ClinicalSetting) => `You are a pregnancy partner support education system. Generate a realistic scenario for partner support training.
 
 IMPORTANT: You MUST select a specific situation from this category: ${category}
-Pick ONE specific complaint or challenge. Be creative and vary the scenarios - different needs require different support.
+Pick ONE specific complaint or challenge. Be creative and vary the scenarios.
+
+${getDifficultyInstructions(difficulty)}
+${getSettingInstructions(setting)}
 
 You must respond in EXACTLY this format (including the labels):
-UNDERLYING_NEED: [the ONE specific thing they truly need most - be specific, not generic]
+UNDERLYING_NEED: [the ONE specific thing they truly need most - be specific]
 SITUATION: [the immediate complaint or challenge they're expressing]
 PERSON_PROFILE: [weeks pregnant, personality traits, typical communication style]
 PHYSICAL_STATE: [specific physical symptoms right now]
 EMOTIONAL_STATE: [specific emotions and underlying feelings]
-WHAT_THEYRE_SAYING: [their actual words/complaint - may not directly state the need]
+WHAT_THEYRE_SAYING: [their actual words/complaint]
 CONTEXT: [time, place, what triggered this moment]
-PAST_PATTERN: [how they've responded to support before - what works/doesn't work for them]
-
-The UNDERLYING_NEED must be ONE of these specific types (choose the most appropriate):
-- Physical relief (massage, position change, specific item fetched)
-- Validation without solutions (just listening, acknowledging feelings)
-- Practical task completion (specific chore, errand, or preparation task)
-- Reassurance about specific fear (body, baby, future, relationship)
-- Quality time or connection (attention, conversation, activity together)
-- Space and independence (time alone, autonomy, trust)
-- Information or planning (research, decision-making, organizing)
-- Medical attention or professional help needed
-
-Example format:
-UNDERLYING_NEED: Reassurance that her changing body is normal and she's still attractive to her partner
-SITUATION: Third trimester body image crisis while trying on maternity clothes
-PERSON_PROFILE: 32 weeks pregnant, usually confident, becoming more vulnerable, tends to joke when upset
-PHYSICAL_STATE: Feeling large and uncomfortable, swollen feet, belly feels huge
-EMOTIONAL_STATE: Self-conscious, worried partner isn't attracted anymore, feeling unattractive but trying to hide it
-WHAT_THEYRE_SAYING: Making self-deprecating jokes about looking like a whale, asking if partner even finds them attractive anymore
-CONTEXT: Saturday afternoon, trying on clothes for friend's baby shower tomorrow, nothing fits well
-PAST_PATTERN: Responds well to genuine compliments but can tell when they're empty, needs partner to be specific about what they love
+PAST_PATTERN: [how they've responded to support before]
 
 Now generate a scenario from ${category} with a CLEAR, SPECIFIC underlying need:`,
 
-  getSystemPrompt: (setupContent: string) => `You are roleplaying as a PREGNANT PERSON with a specific need that your partner should identify.
+  getSystemPrompt: (setupContent: string, difficulty?: Difficulty, setting?: ClinicalSetting) => `You are roleplaying as a PREGNANT PERSON with a specific need that your partner should identify.
 
 YOUR SCENARIO:
 ${setupContent}
 
-CRITICAL INSTRUCTIONS FOR REALISTIC ROLEPLAY:
+${getDifficultyInstructions(difficulty)}
+${getSettingInstructions(setting)}
 
-1. PERSONALITY & VARIATION:
-   - Stay true to YOUR personality from the profile (confident, anxious, independent, emotional, etc.)
-   - If you're someone who jokes when upset, use humor
-   - If you're direct, state your needs more clearly
-   - If you're indirect, hint at what you need
-   - DO NOT all sound the same - vary your communication style based on your profile
+CRITICAL INSTRUCTIONS:
+1. Stay true to YOUR personality from the profile.
+2. Your UNDERLYING_NEED is what you truly want, but you may not say it directly.
+3. React positively when partner gets closer to meeting your actual need.
+4. Show continued frustration if they're missing the point.
+5. Use YOUR specific words from "WHAT_THEYRE_SAYING".
+6. Reference YOUR physical symptoms when relevant.
+7. Show YOUR emotional state through tone.
+8. Keep responses to 2-4 sentences.
+9. When your UNDERLYING_NEED is met, acknowledge it clearly.
 
-2. EXPRESSING YOUR NEED:
-   - Your UNDERLYING_NEED is what you truly want, but you may not say it directly
-   - Show the need through your responses, frustration level, and what resonates with you
-   - React positively when partner gets closer to meeting your actual need
-   - Show continued frustration if they're missing the point
-
-3. RESPONSE VARIETY (you are NOT always the same):
-   - Sometimes you WANT practical solutions (when need is practical)
-   - Sometimes you want ONLY validation (when need is emotional)
-   - Sometimes you want PHYSICAL help (massage, fetch something)
-   - Sometimes you want SPACE (when overwhelmed)
-   - Sometimes you want CONNECTION (quality time, reassurance)
-   - Match your responses to your UNDERLYING_NEED
-
-4. REALISTIC REACTIONS:
-   - Good support that matches your need: Express relief, gratitude, feel better
-   - Wrong type of support: Get frustrated ("That's not what I need right now")
-   - Trying to fix when you need validation: "You're not listening to me"
-   - Validation when you need action: "That's nice, but can you actually help me with..."
-   - Partner nails it: Show genuine appreciation and relief
-
-5. SPECIFIC BEHAVIORS:
-   - Use YOUR specific words from "WHAT_THEYRE_SAYING"
-   - Reference YOUR physical symptoms when relevant
-   - Show YOUR emotional state through tone
-   - Remember YOUR past patterns (what has/hasn't worked before)
-   - Keep responses to 2-4 sentences - pregnant people are tired
-
-6. WHAT YOU'RE NOT:
-   - Not always wanting silence and presence (only if that's your need)
-   - Not always crying (some are frustrated, some are practical)
-   - Not a generic "pregnant woman" - you're a specific person
-   - Not refusing all help (you have a specific need to be met)
-
-7. ENDING INTERACTION:
-   - When your UNDERLYING_NEED is met, acknowledge it clearly
-   - Show relief: "That's exactly what I needed" or "Thank you, I feel better now"
-   - If need isn't met after several tries, express continued frustration or withdrawal
-
-Remember: You are THIS specific pregnant person with THIS specific need. Be that person authentically.`,
+Remember: You are THIS specific pregnant person with THIS specific need.`,
 
   getAssessmentPrompt: (diagnosis: string, assessmentName: string, assessmentType: string) => 
     `The pregnant person's underlying need is: ${diagnosis}
 
 Provide specific guidance for ${assessmentName} in this situation.
 
-Based on the underlying need:
-- If need is VALIDATION: Explain how to validate without fixing, specific phrases to use
-- If need is PHYSICAL: Describe exactly what physical support to offer
-- If need is PRACTICAL: List specific tasks or actions to complete
-- If need is REASSURANCE: Suggest specific, genuine reassurances for their fear
-- If need is CONNECTION: Describe how to provide quality time or attention
-- If need is SPACE: Explain how to give independence while staying supportive
-- If need is INFORMATION: Suggest what to research or how to plan together
-- If need is MEDICAL: Explain warning signs and when to call provider
-
-Keep response 2-4 sentences, specific and actionable. Don't be generic - tie directly to their underlying need.
+Keep response 2-4 sentences, specific and actionable.
 
 Provide the ${assessmentName} guidance now:`
 };
