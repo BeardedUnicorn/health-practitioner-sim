@@ -1,6 +1,7 @@
 import { useRef, useEffect } from 'react';
-import { PatientSession, ProfessionConfig, Profession } from '../types';
+import { PatientSession, ProfessionConfig, Profession, ApiConfig } from '../types';
 import { Message, TypingIndicator } from './Message';
+import { InlineCoach } from './Coach';
 
 interface ChatContainerProps {
   session: PatientSession;
@@ -11,24 +12,31 @@ interface ChatContainerProps {
   feedback: { correct: boolean; message: string } | null;
   showCoach: boolean;
   disabled?: boolean;
+  inlineCoachEnabled: boolean;
+  apiConfig: ApiConfig;
   onMessageChange: (message: string) => void;
   onSend: () => void;
   onNewSession: () => void;
   onToggleCoach: () => void;
+  onToggleInlineCoach: () => void;
 }
 
 export function ChatContainer({
   session,
+  profession,
   professionConfig,
   currentMessage,
   isLoading,
   feedback,
   showCoach,
-  disabled,
+  disabled = false,
+  inlineCoachEnabled,
+  apiConfig,
   onMessageChange,
   onSend,
   onNewSession,
-  onToggleCoach
+  onToggleCoach,
+  onToggleInlineCoach
 }: ChatContainerProps) {
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
 
@@ -47,7 +55,18 @@ export function ChatContainer({
     }
   };
 
+  const handleSuggestionClick = (text: string) => {
+    onMessageChange(text);
+  };
+
   const isInputDisabled = isLoading || !!feedback || disabled;
+
+  // Build conversation context for inline coach
+  const conversationContext = session.conversationHistory
+    .filter(msg => msg.role !== 'system')
+    .slice(-6)
+    .map(msg => `${msg.role === 'user' ? professionConfig.userLabel : professionConfig.patientLabel}: ${msg.content}`)
+    .join('\n');
 
   return (
     <div className="chat-container">
@@ -88,14 +107,35 @@ export function ChatContainer({
         </div>
       )}
 
+      {/* Inline Coach Suggestions */}
+      {!feedback && !disabled && (
+        <InlineCoach
+          profession={profession}
+          sessionContext={session.diagnosis}
+          conversationHistory={conversationContext}
+          apiConfig={apiConfig}
+          onSuggestionClick={handleSuggestionClick}
+          enabled={inlineCoachEnabled}
+        />
+      )}
+
       <div className="input-container">
-        <button 
-          onClick={onToggleCoach} 
-          className={`btn-coach ${showCoach ? 'active' : ''}`}
-          title="Toggle Coach"
-        >
-          🎓
-        </button>
+        <div className="input-left-buttons">
+          <button 
+            onClick={onToggleCoach} 
+            className={`btn-coach ${showCoach ? 'active' : ''}`}
+            title="Toggle Coach Panel"
+          >
+            🎓
+          </button>
+          <button
+            onClick={onToggleInlineCoach}
+            className={`btn-inline-coach ${inlineCoachEnabled ? 'active' : ''}`}
+            title={inlineCoachEnabled ? 'Disable Quick Suggestions' : 'Enable Quick Suggestions'}
+          >
+            💡
+          </button>
+        </div>
         <input
           type="text"
           value={currentMessage}

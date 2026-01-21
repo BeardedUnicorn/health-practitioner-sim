@@ -66,6 +66,24 @@ export interface ApiConfig {
   modelName: string;
 }
 
+// Coach suggestion types
+export type SuggestionType = 'question' | 'assessment' | 'consideration' | 'followup';
+
+export interface CoachSuggestion {
+  id: string;
+  text: string;
+  type: SuggestionType;
+  shortLabel: string;
+  fullText: string;
+}
+
+export interface CoachData {
+  suggestions: CoachSuggestion[];
+  summary: string;
+  missingAreas: string[];
+  timestamp: number;
+}
+
 // Progress tracking types
 export interface SessionRecord {
   id: string;

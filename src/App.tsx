@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import './App.css';
-import { Profession, PatientSession, ApiConfig, Message, ProgressData, CaseSetup, Difficulty, ClinicalSetting } from './types';
+import { Profession, PatientSession, ApiConfig, Message, ProgressData, CaseSetup } from './types';
 import { professionConfigs } from './config/professionConfig';
 import { ProfessionSelect } from './components/ProfessionSelect';
 import { SettingsModal } from './components/SettingsModal';
@@ -34,6 +34,7 @@ function App() {
   const [showAnswer, setShowAnswer] = useState(false);
   const [showToolkit, setShowToolkit] = useState(false);
   const [showCoach, setShowCoach] = useState(false);
+  const [inlineCoachEnabled, setInlineCoachEnabled] = useState(false);
   const [performingAssessment, setPerformingAssessment] = useState(false);
   const [coachWidth, setCoachWidth] = useState(350);
   
@@ -47,6 +48,9 @@ function App() {
   // Progress state
   const [progress, setProgress] = useState<ProgressData>({ sessions: [], lastUpdated: 0 });
 
+  // Coach conversation context - updates when conversation changes
+  const [coachConversation, setCoachConversation] = useState('');
+
   // Abort controller for canceling requests
   const abortControllerRef = useRef<AbortController | null>(null);
 
@@ -56,6 +60,18 @@ function App() {
   useEffect(() => {
     setProgress(loadProgress());
   }, []);
+
+  // Update coach conversation context when session conversation changes
+  useEffect(() => {
+    if (session && professionConfig) {
+      const context = session.conversationHistory
+        .filter(msg => msg.role !== 'system')
+        .slice(-8) // Last 8 messages for context
+        .map(msg => `${msg.role === 'user' ? professionConfig.userLabel : professionConfig.patientLabel}: ${msg.content}`)
+        .join('\n');
+      setCoachConversation(context);
+    }
+  }, [session?.conversationHistory, professionConfig]);
 
   // Cleanup abort controller on unmount
   useEffect(() => {
@@ -81,9 +97,11 @@ function App() {
     setShowAnswer(false);
     setShowToolkit(false);
     setShowCoach(false);
+    setInlineCoachEnabled(false);
     setShowEvaluation(false);
     setUserFinalAnswer('');
     setPendingCaseSetup(null);
+    setCoachConversation('');
     setProfession(null);
     setAppState('profession-select');
   };
@@ -130,7 +148,6 @@ function App() {
   const handleStartRandom = () => {
     if (!professionConfig || !profession) return;
     
-    // Get saved preferences for difficulty/setting but use random category
     const prefs = getProfessionPreferences(profession);
     
     const setup: CaseSetup = {
@@ -153,7 +170,6 @@ function App() {
   const startNewSessionWithSetup = async (setup: CaseSetup) => {
     if (!professionConfig) return;
     
-    // Create new abort controller
     abortControllerRef.current = new AbortController();
     
     setFeedback(null);
@@ -161,6 +177,7 @@ function App() {
     setShowCoach(false);
     setShowEvaluation(false);
     setUserFinalAnswer('');
+    setCoachConversation('');
     
     try {
       const setupPrompt = professionConfig.getSetupPrompt(
@@ -190,7 +207,6 @@ function App() {
       const setupData = await setupResponse.json();
       const setupContent = setupData.choices[0].message.content;
       
-      // Try different patterns for different profession types
       let diagnosis = 'Unknown Condition';
       
       const diagnosisPatterns = [
@@ -242,12 +258,10 @@ function App() {
         turnsUsed: 0
       });
       
-      // Clear abort controller on success
       abortControllerRef.current = null;
       
       setAppState('session');
     } catch (error) {
-      // Check if it was aborted
       if (error instanceof Error && error.name === 'AbortError') {
         console.log('Request was cancelled');
         return;
@@ -256,18 +270,15 @@ function App() {
       const message = error instanceof Error ? error.message : String(error);
       alert(`Error starting session: ${message}`);
       
-      // Clear abort controller
       abortControllerRef.current = null;
       
-      // Go back to ready state on error
       setPendingCaseSetup(null);
       setAppState('ready');
     }
   };
 
-  // Legacy start function for backwards compatibility
-  const startNewSession = () => {
-    handleOpenCaseSetup();
+  const handleCoachSuggestionClick = (text: string) => {
+    setCurrentMessage(text);
   };
 
   const sendMessage = async () => {
@@ -276,10 +287,8 @@ function App() {
     const userMessage = currentMessage.trim();
     setCurrentMessage('');
 
-    // Increment turns used
     const newTurnsUsed = (session.turnsUsed || 0) + 1;
 
-    // Immediately add user message to conversation
     const updatedHistoryWithUserMessage: Message[] = [
       ...session.conversationHistory,
       { role: 'user', content: userMessage }
@@ -298,7 +307,6 @@ function App() {
       const isCorrect = userDiagnosis.toLowerCase().includes(session.diagnosis.toLowerCase()) ||
                         session.diagnosis.toLowerCase().includes(userDiagnosis.toLowerCase());
       
-      // Store the user's answer for evaluation
       setUserFinalAnswer(userDiagnosis);
       
       setFeedback({
@@ -308,7 +316,6 @@ function App() {
           : `❌ Incorrect. The ${professionConfig.patientLabel.toLowerCase()}'s condition is ${session.diagnosis}, not ${userDiagnosis}.`
       });
       
-      // Show evaluation after a brief delay
       setTimeout(() => {
         setShowEvaluation(true);
       }, 500);
@@ -316,11 +323,9 @@ function App() {
       return;
     }
 
-    // Check if time pressure limit reached after this turn
     if (session.caseSetup?.timePressureEnabled && 
         session.caseSetup.maxTurns && 
         newTurnsUsed >= session.caseSetup.maxTurns) {
-      // Don't send the message to the API, force diagnosis
       setSession(prev => prev ? { ...prev, turnsUsed: newTurnsUsed } : null);
       return;
     }
@@ -373,7 +378,6 @@ function App() {
   const handleForceSubmit = () => {
     if (!session || !professionConfig) return;
     
-    // Auto-submit with "time ran out" answer
     setUserFinalAnswer('Time ran out - no diagnosis submitted');
     setFeedback({
       correct: false,
@@ -390,10 +394,8 @@ function App() {
 
     setPerformingAssessment(true);
 
-    // Increment turns for assessments too
     const newTurnsUsed = (session.turnsUsed || 0) + 1;
 
-    // Immediately add the assessment action to conversation
     const assessmentAction: Message = { role: 'user', content: `[Performed ${assessmentName}]` };
     
     setSession(prevSession => {
@@ -408,7 +410,6 @@ function App() {
       };
     });
 
-    // Check if time pressure limit reached
     if (session.caseSetup?.timePressureEnabled && 
         session.caseSetup.maxTurns && 
         newTurnsUsed >= session.caseSetup.maxTurns) {
@@ -472,9 +473,11 @@ function App() {
     setShowAnswer(false);
     setShowToolkit(false);
     setShowCoach(false);
+    setInlineCoachEnabled(false);
     setShowEvaluation(false);
     setUserFinalAnswer('');
     setPendingCaseSetup(null);
+    setCoachConversation('');
     setAppState('ready');
   };
 
@@ -482,18 +485,12 @@ function App() {
     setShowEvaluation(false);
   };
 
-  // Check if turns are exhausted
-  const turnsExhausted = session?.caseSetup?.timePressureEnabled && 
-                         session?.caseSetup?.maxTurns && 
-                         (session?.turnsUsed || 0) >= session.caseSetup.maxTurns &&
-                         !feedback;
-
-  // Get last 5 messages for coach context
-  const recentConversation = session ? session.conversationHistory
-    .filter(msg => msg.role !== 'system')
-    .slice(-5)
-    .map(msg => `${msg.role === 'user' ? professionConfig?.userLabel : professionConfig?.patientLabel}: ${msg.content}`)
-    .join('\n') : '';
+  const turnsExhausted = !!(
+      session?.caseSetup?.timePressureEnabled && 
+      session?.caseSetup?.maxTurns && 
+      (session?.turnsUsed || 0) >= session.caseSetup.maxTurns &&
+      !feedback
+    );
 
   return (
     <div className="app">
@@ -690,11 +687,14 @@ function App() {
               isLoading={isLoading || performingAssessment}
               feedback={feedback}
               showCoach={showCoach}
+              disabled={turnsExhausted}
+              inlineCoachEnabled={inlineCoachEnabled}
+              apiConfig={apiConfig}
               onMessageChange={setCurrentMessage}
               onSend={sendMessage}
               onNewSession={handleOpenCaseSetup}
               onToggleCoach={() => setShowCoach(!showCoach)}
-              disabled={turnsExhausted}
+              onToggleInlineCoach={() => setInlineCoachEnabled(!inlineCoachEnabled)}
             />
 
             {/* Turn Counter for Time Pressure Mode */}
@@ -736,9 +736,10 @@ function App() {
                   <Coach
                     profession={profession!}
                     sessionContext={session.diagnosis}
-                    conversationHistory={recentConversation}
+                    conversationHistory={coachConversation}
                     apiConfig={apiConfig}
                     onClose={() => setShowCoach(false)}
+                    onSuggestionClick={handleCoachSuggestionClick}
                   />
                 </div>
               </>
