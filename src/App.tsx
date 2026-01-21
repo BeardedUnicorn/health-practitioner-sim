@@ -48,9 +48,6 @@ function App() {
   // Progress state
   const [progress, setProgress] = useState<ProgressData>({ sessions: [], lastUpdated: 0 });
 
-  // Coach conversation context - updates when conversation changes
-  const [coachConversation, setCoachConversation] = useState('');
-
   // Abort controller for canceling requests
   const abortControllerRef = useRef<AbortController | null>(null);
 
@@ -60,18 +57,6 @@ function App() {
   useEffect(() => {
     setProgress(loadProgress());
   }, []);
-
-  // Update coach conversation context when session conversation changes
-  useEffect(() => {
-    if (session && professionConfig) {
-      const context = session.conversationHistory
-        .filter(msg => msg.role !== 'system')
-        .slice(-8) // Last 8 messages for context
-        .map(msg => `${msg.role === 'user' ? professionConfig.userLabel : professionConfig.patientLabel}: ${msg.content}`)
-        .join('\n');
-      setCoachConversation(context);
-    }
-  }, [session?.conversationHistory, professionConfig]);
 
   // Cleanup abort controller on unmount
   useEffect(() => {
@@ -101,7 +86,6 @@ function App() {
     setShowEvaluation(false);
     setUserFinalAnswer('');
     setPendingCaseSetup(null);
-    setCoachConversation('');
     setProfession(null);
     setAppState('profession-select');
   };
@@ -177,7 +161,6 @@ function App() {
     setShowCoach(false);
     setShowEvaluation(false);
     setUserFinalAnswer('');
-    setCoachConversation('');
     
     try {
       const setupPrompt = professionConfig.getSetupPrompt(
@@ -477,7 +460,6 @@ function App() {
     setShowEvaluation(false);
     setUserFinalAnswer('');
     setPendingCaseSetup(null);
-    setCoachConversation('');
     setAppState('ready');
   };
 
@@ -486,11 +468,11 @@ function App() {
   };
 
   const turnsExhausted = !!(
-      session?.caseSetup?.timePressureEnabled && 
-      session?.caseSetup?.maxTurns && 
-      (session?.turnsUsed || 0) >= session.caseSetup.maxTurns &&
-      !feedback
-    );
+    session?.caseSetup?.timePressureEnabled && 
+    session?.caseSetup?.maxTurns && 
+    (session?.turnsUsed || 0) >= session.caseSetup.maxTurns &&
+    !feedback
+  );
 
   return (
     <div className="app">
@@ -735,8 +717,7 @@ function App() {
                 <div className="side-panel coach-panel" style={{ width: `${coachWidth}px` }}>
                   <Coach
                     profession={profession!}
-                    sessionContext={session.diagnosis}
-                    conversationHistory={coachConversation}
+                    conversationHistory={session.conversationHistory}
                     apiConfig={apiConfig}
                     onClose={() => setShowCoach(false)}
                     onSuggestionClick={handleCoachSuggestionClick}

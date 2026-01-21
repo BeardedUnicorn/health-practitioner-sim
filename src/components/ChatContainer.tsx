@@ -61,13 +61,6 @@ export function ChatContainer({
 
   const isInputDisabled = isLoading || !!feedback || disabled;
 
-  // Build conversation context for inline coach
-  const conversationContext = session.conversationHistory
-    .filter(msg => msg.role !== 'system')
-    .slice(-6)
-    .map(msg => `${msg.role === 'user' ? professionConfig.userLabel : professionConfig.patientLabel}: ${msg.content}`)
-    .join('\n');
-
   return (
     <div className="chat-container">
       <div className="messages">
@@ -111,8 +104,7 @@ export function ChatContainer({
       {!feedback && !disabled && (
         <InlineCoach
           profession={profession}
-          sessionContext={session.diagnosis}
-          conversationHistory={conversationContext}
+          conversationHistory={session.conversationHistory}
           apiConfig={apiConfig}
           onSuggestionClick={handleSuggestionClick}
           enabled={inlineCoachEnabled}

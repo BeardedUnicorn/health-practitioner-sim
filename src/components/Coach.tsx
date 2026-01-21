@@ -1,11 +1,10 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { Profession, ApiConfig, CoachData, CoachSuggestion, SuggestionType } from '../types';
+import { Profession, ApiConfig, CoachData, CoachSuggestion, SuggestionType, Message } from '../types';
 import { professionConfigs } from '../config/professionConfig';
 
 interface CoachProps {
   profession: Profession;
-  sessionContext: string;
-  conversationHistory: string;
+  conversationHistory: Message[];
   apiConfig: ApiConfig;
   onClose: () => void;
   onSuggestionClick: (text: string) => void;
@@ -20,8 +19,7 @@ const SUGGESTION_TYPE_INFO: Record<SuggestionType, { emoji: string; label: strin
 
 export function Coach({ 
   profession, 
-  sessionContext, 
-  conversationHistory, 
+  conversationHistory,
   apiConfig, 
   onClose,
   onSuggestionClick 
@@ -29,18 +27,28 @@ export function Coach({
   const [coachData, setCoachData] = useState<CoachData | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const lastConversationRef = useRef<string>('');
+  const lastConversationLengthRef = useRef<number>(0);
   const abortControllerRef = useRef<AbortController | null>(null);
 
   const professionConfig = professionConfigs[profession];
 
-  const generateCoachAdvice = useCallback(async () => {
-    // Don't regenerate if conversation hasn't changed
-    if (conversationHistory === lastConversationRef.current && coachData) {
+  // Build conversation text for the prompt (excluding system message)
+  const buildConversationText = useCallback(() => {
+    return conversationHistory
+      .filter(msg => msg.role !== 'system')
+      .map(msg => `${msg.role === 'user' ? professionConfig.userLabel : professionConfig.patientLabel}: ${msg.content}`)
+      .join('\n');
+  }, [conversationHistory, professionConfig]);
+
+  const generateCoachAdvice = useCallback(async (forceRefresh = false) => {
+    const currentLength = conversationHistory.length;
+    
+    // Don't regenerate if conversation hasn't changed (unless forced)
+    if (!forceRefresh && currentLength === lastConversationLengthRef.current && coachData) {
       return;
     }
     
-    lastConversationRef.current = conversationHistory;
+    lastConversationLengthRef.current = currentLength;
     
     // Cancel any pending request
     if (abortControllerRef.current) {
@@ -50,42 +58,55 @@ export function Coach({
     
     setIsLoading(true);
     setError(null);
+
+    const conversationText = buildConversationText();
     
-    const coachPrompt = `You are an expert ${professionConfig.name} educator and coach providing real-time guidance.
+    const coachPrompt = `You are an expert ${professionConfig.name} educator providing real-time coaching to a trainee.
 
-Based on this ${professionConfig.patientLabel.toLowerCase()} case context:
-${sessionContext}
+IMPORTANT: You do NOT know what condition the ${professionConfig.patientLabel.toLowerCase()} has. Your job is to help the trainee use proper clinical reasoning to figure it out themselves.
 
-Recent conversation:
-${conversationHistory}
+The trainee is practicing with a simulated ${professionConfig.patientLabel.toLowerCase()}. Here is the conversation so far:
 
-Analyze the conversation and provide actionable coaching guidance.
+${conversationText || '(Conversation just started - the trainee has not asked any questions yet)'}
+
+Based on what has been discussed (or not discussed yet), provide coaching guidance to help the trainee:
+1. Identify what information they should gather next
+2. Suggest systematic assessment approaches
+3. Point out areas they haven't explored yet
+4. Guide their clinical reasoning WITHOUT revealing any diagnosis
 
 You MUST respond in EXACTLY this JSON format (no other text, just valid JSON):
 {
   "suggestions": [
     {
-      "text": "<exact question or action to take - written as if the clinician would say/do it>",
+      "text": "<description of what to ask/do>",
       "type": "<one of: question, assessment, consideration, followup>",
       "shortLabel": "<2-4 word label for the chip>",
-      "fullText": "<the complete question/statement to insert, ready to send>"
+      "fullText": "<the exact question or statement to say, ready to send>"
     }
   ],
-  "summary": "<1-2 sentence overview of current status and what's most important to address>",
+  "summary": "<1-2 sentence overview of what the trainee should focus on next, based on clinical reasoning principles>",
   "missingAreas": [
-    "<brief description of area not yet explored>",
-    "<another missing area>"
+    "<important clinical area not yet explored>",
+    "<another area to consider>"
   ]
 }
 
-Guidelines for suggestions:
-- Provide 3-5 suggestions, prioritized by importance
-- "question" type: Direct questions to ask the ${professionConfig.patientLabel.toLowerCase()}
-- "assessment" type: Physical/mental assessments to perform (for toolkit use)
-- "consideration" type: Important factors to keep in mind
-- "followup" type: Follow-up questions based on previous answers
+Guidelines:
+- Provide 3-5 suggestions prioritized by clinical importance
+- "question" type: Questions to ask the ${professionConfig.patientLabel.toLowerCase()} to gather more information
+- "assessment" type: Physical or mental assessments to perform
+- "consideration" type: Clinical reasoning points to keep in mind
+- "followup" type: Follow-up questions based on what was already discussed
 
-Make suggestions specific to THIS case and conversation state. The "fullText" should be copy-paste ready.`;
+Focus on PROCESS not ANSWERS:
+- What symptoms should be clarified?
+- What history is missing?
+- What systems haven't been reviewed?
+- What red flags should be ruled out?
+- What assessments would help narrow things down?
+
+DO NOT suggest specific diagnoses or treatments. Help the trainee gather information systematically.`;
 
     try {
       const response = await fetch(`${apiConfig.apiUrl}/chat/completions`, {
@@ -138,11 +159,11 @@ Make suggestions specific to THIS case and conversation state. The "fullText" sh
     } finally {
       setIsLoading(false);
     }
-  }, [conversationHistory, sessionContext, apiConfig, professionConfig]);
+  }, [conversationHistory, buildConversationText, apiConfig, professionConfig, coachData]);
 
   // Auto-refresh when conversation changes
   useEffect(() => {
-    if (conversationHistory) {
+    if (conversationHistory.length > 0) {
       generateCoachAdvice();
     }
     
@@ -151,31 +172,44 @@ Make suggestions specific to THIS case and conversation state. The "fullText" sh
         abortControllerRef.current.abort();
       }
     };
-  }, [conversationHistory, generateCoachAdvice]);
+  }, [conversationHistory.length, generateCoachAdvice]);
 
   const handleSuggestionClick = (suggestion: CoachSuggestion) => {
     onSuggestionClick(suggestion.fullText);
   };
 
+  const handleRefresh = () => {
+    generateCoachAdvice(true);
+  };
+
   return (
     <>
       <div className="side-panel-header">
-        <h3>🎓 {professionConfig.name} Coach</h3>
+        <div className="coach-header-left">
+          <h3>🎓 {professionConfig.name} Coach</h3>
+          {isLoading && (
+            <span className="coach-header-status">
+              <span className="coach-status-dot"></span>
+              Analyzing...
+            </span>
+          )}
+        </div>
         <button onClick={onClose} className="panel-close">×</button>
       </div>
       
-      <div className="side-panel-content coach-content">
-        {/* Loading indicator */}
-        {isLoading && (
-          <div className="coach-loading-bar">
-            <div className="coach-loading-progress"></div>
+      <div className={`side-panel-content coach-content ${isLoading ? 'coach-loading' : ''}`}>
+        {/* Full-panel loading state for initial load */}
+        {isLoading && !coachData && (
+          <div className="coach-loading-full">
+            <div className="coach-loading-spinner"></div>
+            <p>Analyzing conversation...</p>
           </div>
         )}
         
         {error && !coachData && (
           <div className="coach-error">
             <p>⚠️ {error}</p>
-            <button onClick={generateCoachAdvice} className="btn-secondary btn-small">
+            <button onClick={handleRefresh} className="btn-secondary btn-small">
               🔄 Retry
             </button>
           </div>
@@ -183,6 +217,14 @@ Make suggestions specific to THIS case and conversation state. The "fullText" sh
         
         {coachData && (
           <>
+            {/* Loading overlay for refresh */}
+            {isLoading && (
+              <div className="coach-updating-banner">
+                <span className="coach-updating-spinner"></span>
+                <span>Updating suggestions...</span>
+              </div>
+            )}
+            
             {/* Summary */}
             <div className="coach-summary">
               <div className="coach-summary-icon">💡</div>
@@ -191,7 +233,7 @@ Make suggestions specific to THIS case and conversation state. The "fullText" sh
             
             {/* Suggestions */}
             <div className="coach-suggestions-section">
-              <h4>Suggested Actions</h4>
+              <h4>Suggested Next Steps</h4>
               <div className="coach-suggestions">
                 {coachData.suggestions.map((suggestion) => (
                   <button
@@ -199,6 +241,7 @@ Make suggestions specific to THIS case and conversation state. The "fullText" sh
                     className={`coach-suggestion-chip type-${suggestion.type}`}
                     onClick={() => handleSuggestionClick(suggestion)}
                     title={suggestion.fullText}
+                    disabled={isLoading}
                   >
                     <span className="chip-icon">
                       {SUGGESTION_TYPE_INFO[suggestion.type].emoji}
@@ -226,18 +269,25 @@ Make suggestions specific to THIS case and conversation state. The "fullText" sh
         
         {!coachData && !isLoading && !error && (
           <div className="coach-empty">
-            <p>Start the conversation to receive coaching suggestions.</p>
+            <p>Start the conversation to receive coaching guidance.</p>
           </div>
         )}
       </div>
       
       <div className="side-panel-footer">
         <button 
-          onClick={generateCoachAdvice} 
+          onClick={handleRefresh} 
           disabled={isLoading} 
           className="btn-secondary"
         >
-          {isLoading ? '⏳ Analyzing...' : '🔄 Refresh'}
+          {isLoading ? (
+            <>
+              <span className="btn-spinner"></span>
+              Analyzing...
+            </>
+          ) : (
+            '🔄 Refresh'
+          )}
         </button>
       </div>
     </>
@@ -247,8 +297,7 @@ Make suggestions specific to THIS case and conversation state. The "fullText" sh
 // Inline Coach component for showing suggestions under the input
 interface InlineCoachProps {
   profession: Profession;
-  sessionContext: string;
-  conversationHistory: string;
+  conversationHistory: Message[];
   apiConfig: ApiConfig;
   onSuggestionClick: (text: string) => void;
   enabled: boolean;
@@ -256,7 +305,6 @@ interface InlineCoachProps {
 
 export function InlineCoach({
   profession,
-  sessionContext,
   conversationHistory,
   apiConfig,
   onSuggestionClick,
@@ -264,18 +312,20 @@ export function InlineCoach({
 }: InlineCoachProps) {
   const [suggestions, setSuggestions] = useState<CoachSuggestion[]>([]);
   const [isLoading, setIsLoading] = useState(false);
-  const lastConversationRef = useRef<string>('');
+  const lastConversationLengthRef = useRef<number>(0);
   const abortControllerRef = useRef<AbortController | null>(null);
 
   const professionConfig = professionConfigs[profession];
 
   const generateQuickSuggestions = useCallback(async () => {
     if (!enabled) return;
-    if (conversationHistory === lastConversationRef.current && suggestions.length > 0) {
+    
+    const currentLength = conversationHistory.length;
+    if (currentLength === lastConversationLengthRef.current && suggestions.length > 0) {
       return;
     }
     
-    lastConversationRef.current = conversationHistory;
+    lastConversationLengthRef.current = currentLength;
     
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
@@ -283,21 +333,28 @@ export function InlineCoach({
     abortControllerRef.current = new AbortController();
     
     setIsLoading(true);
+
+    const conversationText = conversationHistory
+      .filter(msg => msg.role !== 'system')
+      .slice(-6)
+      .map(msg => `${msg.role === 'user' ? professionConfig.userLabel : professionConfig.patientLabel}: ${msg.content}`)
+      .join('\n');
     
-    const quickPrompt = `You are a ${professionConfig.name} coach. Based on this conversation:
+    const quickPrompt = `You are a ${professionConfig.name} coach helping a trainee. You do NOT know the ${professionConfig.patientLabel.toLowerCase()}'s condition.
 
-${conversationHistory}
+Conversation so far:
+${conversationText || '(Just started)'}
 
-Case context: ${sessionContext}
+Suggest 3 good questions the trainee should ask next to gather important clinical information. Focus on systematic assessment - what's missing from the history?
 
-Suggest the 3 most important questions to ask next. Return ONLY a JSON array:
+Return ONLY a JSON array:
 [
   {"shortLabel": "2-3 word label", "fullText": "complete question to ask"},
   {"shortLabel": "2-3 word label", "fullText": "complete question to ask"},
   {"shortLabel": "2-3 word label", "fullText": "complete question to ask"}
 ]
 
-Make questions specific and ready to send. No other text.`;
+Focus on gathering information, NOT diagnosing. No other text.`;
 
     try {
       const response = await fetch(`${apiConfig.apiUrl}/chat/completions`, {
@@ -343,15 +400,14 @@ Make questions specific and ready to send. No other text.`;
       setSuggestions(quickSuggestions);
     } catch (err) {
       if (err instanceof Error && err.name === 'AbortError') return;
-      // Silently fail for inline coach - it's supplementary
       console.log('Inline coach error:', err);
     } finally {
       setIsLoading(false);
     }
-  }, [conversationHistory, sessionContext, apiConfig, professionConfig, enabled, suggestions.length]);
+  }, [conversationHistory, apiConfig, professionConfig, enabled, suggestions.length]);
 
   useEffect(() => {
-    if (enabled && conversationHistory) {
+    if (enabled && conversationHistory.length > 0) {
       generateQuickSuggestions();
     }
     
@@ -360,7 +416,15 @@ Make questions specific and ready to send. No other text.`;
         abortControllerRef.current.abort();
       }
     };
-  }, [conversationHistory, enabled, generateQuickSuggestions]);
+  }, [conversationHistory.length, enabled, generateQuickSuggestions]);
+
+  // Reset suggestions when disabled
+  useEffect(() => {
+    if (!enabled) {
+      setSuggestions([]);
+      lastConversationLengthRef.current = 0;
+    }
+  }, [enabled]);
 
   if (!enabled) return null;
 
@@ -368,22 +432,34 @@ Make questions specific and ready to send. No other text.`;
     <div className="inline-coach">
       <div className="inline-coach-header">
         <span className="inline-coach-icon">🎓</span>
-        <span className="inline-coach-label">Quick suggestions</span>
-        {isLoading && <span className="inline-coach-loading">•••</span>}
+        <span className="inline-coach-label">Suggested questions</span>
+        {isLoading && (
+          <span className="inline-coach-status">
+            <span className="inline-coach-spinner"></span>
+            updating
+          </span>
+        )}
       </div>
-      <div className="inline-coach-chips">
+      <div className={`inline-coach-chips ${isLoading ? 'loading' : ''}`}>
         {suggestions.map((suggestion) => (
           <button
             key={suggestion.id}
             className="inline-coach-chip"
             onClick={() => onSuggestionClick(suggestion.fullText)}
             title={suggestion.fullText}
+            disabled={isLoading}
           >
             {suggestion.shortLabel}
           </button>
         ))}
+        {suggestions.length === 0 && isLoading && (
+          <span className="inline-coach-empty">
+            <span className="inline-coach-spinner"></span>
+            Analyzing conversation...
+          </span>
+        )}
         {suggestions.length === 0 && !isLoading && (
-          <span className="inline-coach-empty">Analyzing conversation...</span>
+          <span className="inline-coach-empty">No suggestions yet</span>
         )}
       </div>
     </div>
