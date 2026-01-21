@@ -1,5 +1,6 @@
 import { Profession } from '../types';
 import { professionConfigs } from '../config/professionConfig';
+import './ProfessionSelect.css';
 
 interface ProfessionSelectProps {
   onSelect: (profession: Profession) => void;

@@ -1,4 +1,5 @@
 import { ApiConfig } from '../types';
+import './SettingsModal.css';
 
 interface SettingsModalProps {
   config: ApiConfig;

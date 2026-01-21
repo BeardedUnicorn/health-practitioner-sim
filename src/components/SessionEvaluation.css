@@ -1,0 +1,399 @@
+.evaluation-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.85);
+  backdrop-filter: blur(8px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  animation: fadeIn 0.3s ease-out;
+  padding: 2rem;
+}
+
+.evaluation-panel {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-lg), var(--shadow-glow);
+  width: 100%;
+  max-width: 700px;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  animation: slideUp 0.4s ease-out;
+}
+
+.evaluation-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1.25rem 1.5rem;
+  border-bottom: 1px solid var(--border-subtle);
+  background: var(--bg-tertiary);
+  flex-shrink: 0;
+}
+
+.evaluation-header h2 {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.evaluation-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 1.5rem;
+}
+
+.evaluation-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  padding: 1rem 1.5rem;
+  border-top: 1px solid var(--border-subtle);
+  background: var(--bg-tertiary);
+  flex-shrink: 0;
+}
+
+/* Loading & Error States */
+.evaluation-loading,
+.evaluation-error {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 3rem;
+  text-align: center;
+}
+
+.evaluation-loading p,
+.evaluation-error p {
+  color: var(--text-secondary);
+  margin: 1rem 0 0 0;
+}
+
+.evaluation-error {
+  gap: 1rem;
+}
+
+.loading-spinner {
+  width: 40px;
+  height: 40px;
+  margin: 0 auto 1rem;
+  border: 3px solid var(--bg-elevated);
+  border-top-color: var(--accent-primary);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+/* Result Banner */
+.evaluation-result {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem 1.25rem;
+  border-radius: var(--radius-lg);
+  margin-bottom: 1.5rem;
+}
+
+.evaluation-result.correct {
+  background: var(--success-bg);
+  border: 1px solid var(--success-border);
+}
+
+.evaluation-result.incorrect {
+  background: var(--error-bg);
+  border: 1px solid var(--error-border);
+}
+
+.result-icon {
+  font-size: 2rem;
+}
+
+.result-text {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.result-text strong {
+  font-size: 1.1rem;
+  color: var(--text-primary);
+}
+
+.result-text span {
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+}
+
+/* Overall Score Section */
+.evaluation-score-section {
+  margin-bottom: 1.5rem;
+}
+
+.overall-score {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+  padding: 1.25rem;
+  background: var(--bg-tertiary);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border-subtle);
+}
+
+.score-circle {
+  width: 100px;
+  height: 100px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  position: relative;
+}
+
+.score-inner {
+  width: 80px;
+  height: 80px;
+  background: var(--bg-secondary);
+  border-radius: 50%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.score-number {
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  line-height: 1;
+}
+
+.score-label {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--accent-primary-hover);
+}
+
+.score-description {
+  flex: 1;
+}
+
+.score-description h3 {
+  margin: 0 0 0.5rem 0;
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.score-description p {
+  margin: 0;
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
+/* Score Breakdown */
+.evaluation-breakdown {
+  margin-bottom: 1.5rem;
+}
+
+.evaluation-breakdown h4 {
+  margin: 0 0 1rem 0;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.breakdown-bars {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.breakdown-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.breakdown-label {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.85rem;
+}
+
+.breakdown-label span:first-child {
+  color: var(--text-secondary);
+}
+
+.breakdown-label span:last-child {
+  color: var(--text-primary);
+  font-weight: 500;
+}
+
+.breakdown-bar {
+  height: 8px;
+  background: var(--bg-elevated);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.breakdown-fill {
+  height: 100%;
+  border-radius: 4px;
+  transition: width 0.5s ease-out;
+}
+
+/* Evaluation Sections */
+.evaluation-section {
+  margin-bottom: 1.25rem;
+  padding: 1rem 1.25rem;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-subtle);
+}
+
+.evaluation-section:last-child {
+  margin-bottom: 0;
+}
+
+.evaluation-section h4 {
+  margin: 0 0 0.75rem 0;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.evaluation-section ul {
+  margin: 0;
+  padding-left: 1.25rem;
+}
+
+.evaluation-section li {
+  margin: 0.5rem 0;
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
+.evaluation-section li p {
+  margin: 0;
+}
+
+/* Section Variants */
+.evaluation-section.strengths {
+  background: var(--success-bg);
+  border-color: var(--success-border);
+}
+
+.evaluation-section.strengths h4 {
+  color: var(--success);
+}
+
+.evaluation-section.gaps {
+  background: var(--warning-bg);
+  border-color: var(--warning-border);
+}
+
+.evaluation-section.gaps h4 {
+  color: var(--warning);
+}
+
+.evaluation-section.safety {
+  background: var(--error-bg);
+  border-color: var(--error-border);
+}
+
+.evaluation-section.safety h4 {
+  color: var(--error);
+}
+
+.evaluation-section.suggestions {
+  background: var(--accent-primary-muted);
+  border-color: rgba(99, 102, 241, 0.3);
+}
+
+.evaluation-section.suggestions h4 {
+  color: var(--accent-primary-hover);
+}
+
+/* Scrollbar for evaluation content */
+.evaluation-content::-webkit-scrollbar {
+  width: 6px;
+}
+
+.evaluation-content::-webkit-scrollbar-track {
+  background: var(--bg-tertiary);
+  border-radius: 10px;
+}
+
+.evaluation-content::-webkit-scrollbar-thumb {
+  background: var(--bg-hover);
+  border-radius: 10px;
+}
+
+.evaluation-content::-webkit-scrollbar-thumb:hover {
+  background: var(--text-muted);
+}
+
+/* Evaluation Saved Indicator */
+.evaluation-saved {
+  text-align: center;
+  padding: 0.75rem;
+  margin-top: 1rem;
+  background: var(--success-bg);
+  border: 1px solid var(--success-border);
+  border-radius: var(--radius-md);
+  color: var(--success);
+  font-size: 0.85rem;
+  font-weight: 500;
+}
+
+/* Evaluation Setup Info */
+.evaluation-setup-info {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+  padding: 0.875rem;
+  background: var(--bg-tertiary);
+  border-radius: var(--radius-md);
+}
+
+.setup-info-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.setup-info-label {
+  color: var(--text-muted);
+  font-size: 0.8rem;
+}
+
+.setup-info-value {
+  color: var(--text-primary);
+  font-size: 0.85rem;
+  font-weight: 500;
+}
+
+.setup-info-value.difficulty-beginner {
+  color: var(--success);
+}
+
+.setup-info-value.difficulty-intermediate {
+  color: var(--warning);
+}
+
+.setup-info-value.difficulty-advanced {
+  color: var(--error);
+}

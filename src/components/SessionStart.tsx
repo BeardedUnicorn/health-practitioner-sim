@@ -1,4 +1,5 @@
 import { ProfessionConfig } from '../types';
+import './SessionStart.css';
 
 interface SessionStartProps {
   professionConfig: ProfessionConfig;

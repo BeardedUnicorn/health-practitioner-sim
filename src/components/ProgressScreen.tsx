@@ -2,6 +2,7 @@ import { useState, useMemo } from 'react';
 import { ProgressData, Profession, Difficulty, ClinicalSetting } from '../types';
 import { professionConfigs } from '../config/professionConfig';
 import { getOverallStats, getProfessionStats, getStreakInfo, clearProgress, filterSessions, getUniqueCategories } from '../utils/progressStorage';
+import './ProgressScreen.css';
 
 interface ProgressScreenProps {
   progress: ProgressData;

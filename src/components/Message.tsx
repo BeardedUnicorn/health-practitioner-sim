@@ -1,5 +1,6 @@
 import ReactMarkdown from 'react-markdown';
 import { Message as MessageType } from '../types';
+import './Message.css';
 
 interface MessageProps {
   message: MessageType;

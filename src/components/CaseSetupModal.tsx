@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Profession, Difficulty, ClinicalSetting, CaseSetup, ProfessionConfig } from '../types';
 import { getProfessionPreferences, saveProfessionPreferences } from '../utils/progressStorage';
+import './CaseSetupModal.css';
 
 interface CaseSetupModalProps {
   profession: Profession;

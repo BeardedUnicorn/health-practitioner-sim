@@ -1,4 +1,5 @@
 import { ToolkitSection } from '../types';
+import './Toolkit.css';
 
 interface ToolkitProps {
   sections: ToolkitSection[];

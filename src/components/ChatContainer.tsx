@@ -2,6 +2,7 @@ import { useRef, useEffect } from 'react';
 import { PatientSession, ProfessionConfig, Profession, ApiConfig } from '../types';
 import { Message, TypingIndicator } from './Message';
 import { InlineCoach } from './Coach';
+import './ChatContainer.css';
 
 interface ChatContainerProps {
   session: PatientSession;

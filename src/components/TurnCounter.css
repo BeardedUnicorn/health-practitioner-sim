@@ -1,0 +1,106 @@
+.turn-counter {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-lg);
+  padding: 0.875rem;
+  min-width: 100px;
+  box-shadow: var(--shadow-md);
+}
+
+.turn-counter.urgent {
+  border-color: var(--error-border);
+  background: var(--error-bg);
+  animation: urgentPulse 1.5s infinite;
+}
+
+@keyframes urgentPulse {
+  0%, 100% {
+    box-shadow: var(--shadow-md);
+  }
+  50% {
+    box-shadow: 0 0 20px rgba(239, 68, 68, 0.4);
+  }
+}
+
+.turn-counter-header {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin-bottom: 0.5rem;
+}
+
+.turn-icon {
+  font-size: 0.9rem;
+}
+
+.turn-label {
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.turn-counter-display {
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 0.25rem;
+  margin-bottom: 0.5rem;
+}
+
+.turns-remaining {
+  font-size: 1.75rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.turns-separator {
+  color: var(--text-muted);
+  font-size: 1rem;
+}
+
+.turns-total {
+  color: var(--text-muted);
+  font-size: 1rem;
+  font-weight: 500;
+}
+
+.turn-progress-bar {
+  height: 4px;
+  background: var(--bg-elevated);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.turn-progress-fill {
+  height: 100%;
+  border-radius: 2px;
+  transition: width 0.3s ease, background-color 0.3s ease;
+}
+
+.turn-warning {
+  text-align: center;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--error);
+  margin-top: 0.5rem;
+}
+
+.btn-force-submit {
+  width: 100%;
+  margin-top: 0.75rem;
+  padding: 0.5rem;
+  background: var(--error);
+  border: none;
+  border-radius: var(--radius-sm);
+  color: white;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.btn-force-submit:hover {
+  background: #dc2626;
+}

@@ -1,0 +1,549 @@
+.coach-loading {
+  text-align: center;
+  padding: 3rem 1rem;
+  color: var(--text-muted);
+}
+
+.coach-loading p {
+  font-size: 0.9rem;
+  font-style: italic;
+  margin: 0;
+}
+
+.coach-advice {
+  color: var(--text-primary);
+  font-size: 0.9rem;
+  line-height: 1.7;
+  white-space: pre-wrap;
+}
+
+.coach-advice h1,
+.coach-advice h2,
+.coach-advice h3,
+.coach-advice h4 {
+  margin-top: 1em;
+  margin-bottom: 0.5em;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.coach-advice h1:first-child,
+.coach-advice h2:first-child,
+.coach-advice h3:first-child,
+.coach-advice h4:first-child {
+  margin-top: 0;
+}
+
+.coach-advice ul,
+.coach-advice ol {
+  margin: 0.5em 0;
+  padding-left: 1.25em;
+}
+
+.coach-advice li {
+  margin: 0.35em 0;
+}
+
+.coach-advice p {
+  margin: 0.5em 0;
+}
+
+.coach-advice strong {
+  color: var(--accent-primary-hover);
+}
+
+.coach-advice code {
+  background: var(--bg-tertiary);
+  padding: 0.15em 0.4em;
+  border-radius: var(--radius-sm);
+  font-size: 0.9em;
+}
+
+.coach-advice blockquote {
+  border-left: 3px solid var(--accent-primary);
+  margin: 0.75em 0;
+  padding-left: 1em;
+  color: var(--text-secondary);
+}
+
+/* ===== Coach Panel Styles ===== */
+.coach-content {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+/* Coach Loading Bar */
+.coach-loading-bar {
+  height: 3px;
+  background: var(--bg-elevated);
+  border-radius: 2px;
+  overflow: hidden;
+  margin-bottom: 0.5rem;
+}
+
+.coach-loading-progress {
+  height: 100%;
+  width: 30%;
+  background: var(--accent-gradient);
+  border-radius: 2px;
+  animation: coachLoadingSlide 1.5s ease-in-out infinite;
+}
+
+@keyframes coachLoadingSlide {
+  0% {
+    transform: translateX(-100%);
+  }
+  50% {
+    transform: translateX(200%);
+  }
+  100% {
+    transform: translateX(-100%);
+  }
+}
+
+/* Coach Error */
+.coach-error {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+  padding: 2rem;
+  text-align: center;
+}
+
+.coach-error p {
+  color: var(--text-secondary);
+  margin: 0;
+}
+
+/* Coach Summary */
+.coach-summary {
+  display: flex;
+  gap: 0.75rem;
+  padding: 0.875rem;
+  background: var(--accent-primary-muted);
+  border: 1px solid rgba(99, 102, 241, 0.2);
+  border-radius: var(--radius-md);
+}
+
+.coach-summary-icon {
+  font-size: 1.25rem;
+  flex-shrink: 0;
+}
+
+.coach-summary p {
+  margin: 0;
+  font-size: 0.9rem;
+  color: var(--text-primary);
+  line-height: 1.5;
+}
+
+/* Coach Suggestions Section */
+.coach-suggestions-section {
+  background: var(--bg-tertiary);
+  border-radius: var(--radius-md);
+  padding: 1rem;
+}
+
+.coach-suggestions-section h4 {
+  margin: 0 0 0.75rem 0;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.coach-suggestions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+/* Coach Suggestion Chip */
+.coach-suggestion-chip {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  padding: 0.75rem 1rem;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  text-align: left;
+  width: 100%;
+}
+
+.coach-suggestion-chip:hover {
+  border-color: var(--accent-primary);
+  background: var(--bg-hover);
+  transform: translateX(4px);
+}
+
+.coach-suggestion-chip:active {
+  transform: translateX(2px);
+}
+
+.chip-icon {
+  font-size: 1rem;
+  flex-shrink: 0;
+}
+
+.chip-label {
+  flex: 1;
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: var(--text-primary);
+  line-height: 1.3;
+}
+
+.chip-arrow {
+  color: var(--text-muted);
+  font-size: 0.9rem;
+  transition: transform var(--transition-fast);
+}
+
+.coach-suggestion-chip:hover .chip-arrow {
+  transform: translateX(4px);
+  color: var(--accent-primary);
+}
+
+/* Suggestion Type Colors */
+.coach-suggestion-chip.type-question {
+  border-left: 3px solid var(--accent-primary);
+}
+
+.coach-suggestion-chip.type-assessment {
+  border-left: 3px solid var(--success);
+}
+
+.coach-suggestion-chip.type-consideration {
+  border-left: 3px solid var(--warning);
+}
+
+.coach-suggestion-chip.type-followup {
+  border-left: 3px solid var(--accent-secondary);
+}
+
+/* Coach Missing Section */
+.coach-missing-section {
+  padding: 1rem;
+  background: var(--bg-tertiary);
+  border-radius: var(--radius-md);
+}
+
+.coach-missing-section h4 {
+  margin: 0 0 0.75rem 0;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.coach-missing-list {
+  margin: 0;
+  padding-left: 1.25rem;
+}
+
+.coach-missing-list li {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  margin: 0.35em 0;
+  line-height: 1.4;
+}
+
+/* Coach Empty State */
+.coach-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 3rem 1rem;
+  text-align: center;
+}
+
+.coach-empty p {
+  color: var(--text-muted);
+  font-size: 0.9rem;
+  margin: 0;
+}
+
+/* ===== Inline Coach Styles ===== */
+.inline-coach {
+  padding: 0.75rem 1.5rem;
+  background: var(--bg-tertiary);
+  border-top: 1px solid var(--border-subtle);
+}
+
+.inline-coach-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.inline-coach-icon {
+  font-size: 0.9rem;
+}
+
+.inline-coach-label {
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.inline-coach-loading {
+  color: var(--accent-primary);
+  font-size: 0.8rem;
+  animation: inlineCoachPulse 1s infinite;
+}
+
+@keyframes inlineCoachPulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+.inline-coach-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.inline-coach-chip {
+  padding: 0.5rem 0.875rem;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-default);
+  border-radius: 20px;
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  white-space: nowrap;
+}
+
+.inline-coach-chip:hover {
+  background: var(--accent-primary-muted);
+  border-color: var(--accent-primary);
+  color: var(--accent-primary-hover);
+  transform: translateY(-1px);
+}
+
+.inline-coach-chip:active {
+  transform: translateY(0);
+}
+
+.inline-coach-empty {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+/* Coach Panel scrollbar */
+.coach-content::-webkit-scrollbar {
+  width: 6px;
+}
+
+.coach-content::-webkit-scrollbar-track {
+  background: var(--bg-tertiary);
+  border-radius: 10px;
+}
+
+.coach-content::-webkit-scrollbar-thumb {
+  background: var(--bg-hover);
+  border-radius: 10px;
+}
+
+.coach-content::-webkit-scrollbar-thumb:hover {
+  background: var(--text-muted);
+}
+
+/* Responsive adjustments for inline coach */
+@media (max-width: 768px) {
+  .inline-coach-chips {
+    overflow-x: auto;
+    flex-wrap: nowrap;
+    padding-bottom: 0.25rem;
+  }
+
+  .inline-coach-chip {
+    flex-shrink: 0;
+  }
+}
+
+/* ===== Coach Loading States ===== */
+.coach-header-left {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.coach-header-left h3 {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.coach-header-status {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.75rem;
+  color: var(--accent-primary);
+  font-weight: 500;
+}
+
+.coach-status-dot {
+  width: 6px;
+  height: 6px;
+  background: var(--accent-primary);
+  border-radius: 50%;
+  animation: coachStatusPulse 1s ease-in-out infinite;
+}
+
+@keyframes coachStatusPulse {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.5;
+    transform: scale(0.8);
+  }
+}
+
+/* Full panel loading for initial state */
+.coach-loading-full {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 3rem 1rem;
+  gap: 1rem;
+}
+
+.coach-loading-spinner {
+  width: 40px;
+  height: 40px;
+  border: 3px solid var(--bg-elevated);
+  border-top-color: var(--accent-primary);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+.coach-loading-full p {
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+  margin: 0;
+}
+
+/* Content loading state (dimmed while refreshing) */
+.coach-content.coach-loading > *:not(.coach-updating-banner) {
+  opacity: 0.6;
+  pointer-events: none;
+}
+
+/* Updating banner at top of content */
+.coach-updating-banner {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.625rem 1rem;
+  background: var(--accent-primary-muted);
+  border: 1px solid rgba(99, 102, 241, 0.3);
+  border-radius: var(--radius-md);
+  margin-bottom: 1rem;
+  animation: fadeIn 0.2s ease-out;
+}
+
+.coach-updating-spinner {
+  width: 14px;
+  height: 14px;
+  border: 2px solid rgba(99, 102, 241, 0.3);
+  border-top-color: var(--accent-primary);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+.coach-updating-banner span:last-child {
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: var(--accent-primary-hover);
+}
+
+/* Button spinner */
+.btn-spinner {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-top-color: white;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+  margin-right: 0.5rem;
+}
+
+.btn-secondary .btn-spinner {
+  border-color: var(--border-default);
+  border-top-color: var(--text-secondary);
+}
+
+/* Disabled suggestion chips while loading */
+.coach-suggestion-chip:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none !important;
+}
+
+/* ===== Inline Coach Loading States ===== */
+.inline-coach-status {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.7rem;
+  color: var(--accent-primary);
+  margin-left: auto;
+}
+
+.inline-coach-spinner {
+  width: 10px;
+  height: 10px;
+  border: 1.5px solid rgba(99, 102, 241, 0.3);
+  border-top-color: var(--accent-primary);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+.inline-coach-chips.loading .inline-coach-chip {
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+.inline-coach-empty {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+/* Override the old loading indicator */
+.inline-coach-loading {
+  display: none;
+}
+
+/* ===== Remove old loading bar styles ===== */
+.coach-loading-bar {
+  display: none;
+}
+
+.coach-loading-progress {
+  display: none;
+}

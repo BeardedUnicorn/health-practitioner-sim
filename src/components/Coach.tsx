@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { Profession, ApiConfig, CoachData, CoachSuggestion, SuggestionType, Message } from '../types';
 import { professionConfigs } from '../config/professionConfig';
+import './Coach.css';
 
 interface CoachProps {
   profession: Profession;

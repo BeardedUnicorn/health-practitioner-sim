@@ -1,3 +1,5 @@
+import './TurnCounter.css';
+
 interface TurnCounterProps {
   turnsUsed: number;
   maxTurns: number;

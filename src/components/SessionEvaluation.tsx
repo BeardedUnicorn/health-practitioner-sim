@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import ReactMarkdown from 'react-markdown';
 import { ProfessionConfig, ApiConfig, Message, Profession, CaseSetup, Difficulty, ClinicalSetting } from '../types';
 import { addSessionRecord } from '../utils/progressStorage';
+import './SessionEvaluation.css';
 
 interface SessionEvaluationProps {
   professionConfig: ProfessionConfig;

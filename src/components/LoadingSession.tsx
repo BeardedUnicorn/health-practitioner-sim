@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { ProfessionConfig } from '../types';
+import './LoadingSession.css';
 
 interface LoadingSessionProps {
   professionConfig: ProfessionConfig;
