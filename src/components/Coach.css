@@ -547,3 +547,13 @@
 .coach-loading-progress {
   display: none;
 }
+
+/* Refreshing state - dims content slightly while updating */
+.coach-content.coach-refreshing > *:not(.coach-updating-banner) {
+  opacity: 0.7;
+  transition: opacity 0.15s ease;
+}
+
+.coach-content.coach-refreshing .coach-suggestion-chip {
+  pointer-events: none;
+}

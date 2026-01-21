@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Profession, ApiConfig, CoachData, CoachSuggestion, SuggestionType, Message } from '../types';
 import { professionConfigs } from '../config/professionConfig';
 import './Coach.css';
@@ -18,6 +18,15 @@ const SUGGESTION_TYPE_INFO: Record<SuggestionType, { emoji: string; label: strin
   followup: { emoji: '➡️', label: 'Follow-up', color: 'var(--accent-secondary)' }
 };
 
+// Generate a stable fingerprint for conversation state
+// This lets us detect actual changes vs. reference changes
+function getConversationFingerprint(messages: Message[]): string {
+  if (messages.length === 0) return '';
+  const nonSystemMessages = messages.filter(m => m.role !== 'system');
+  const lastMsg = nonSystemMessages[nonSystemMessages.length - 1];
+  return `${nonSystemMessages.length}:${lastMsg?.role || ''}:${(lastMsg?.content || '').slice(0, 100)}`;
+}
+
 export function Coach({ 
   profession, 
   conversationHistory,
@@ -28,41 +37,50 @@ export function Coach({
   const [coachData, setCoachData] = useState<CoachData | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const lastConversationLengthRef = useRef<number>(0);
+  
+  // Refs for managing async operations and preventing stale updates
   const abortControllerRef = useRef<AbortController | null>(null);
+  const requestIdRef = useRef<number>(0);
+  const lastProcessedFingerprintRef = useRef<string>('');
 
   const professionConfig = professionConfigs[profession];
+  
+  // Compute current fingerprint
+  const currentFingerprint = getConversationFingerprint(conversationHistory);
 
-  // Build conversation text for the prompt (excluding system message)
-  const buildConversationText = useCallback(() => {
-    return conversationHistory
-      .filter(msg => msg.role !== 'system')
-      .map(msg => `${msg.role === 'user' ? professionConfig.userLabel : professionConfig.patientLabel}: ${msg.content}`)
-      .join('\n');
-  }, [conversationHistory, professionConfig]);
-
-  const generateCoachAdvice = useCallback(async (forceRefresh = false) => {
-    const currentLength = conversationHistory.length;
-    
-    // Don't regenerate if conversation hasn't changed (unless forced)
-    if (!forceRefresh && currentLength === lastConversationLengthRef.current && coachData) {
+  // Auto-refresh effect - triggers when conversation actually changes
+  useEffect(() => {
+    // Skip if conversation hasn't meaningfully changed
+    if (currentFingerprint === lastProcessedFingerprintRef.current) {
       return;
     }
     
-    lastConversationLengthRef.current = currentLength;
-    
-    // Cancel any pending request
+    // Skip if no messages yet
+    if (conversationHistory.length === 0) {
+      return;
+    }
+
+    // Cancel any in-flight request - newer conversation state takes priority
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
     }
-    abortControllerRef.current = new AbortController();
-    
-    setIsLoading(true);
-    setError(null);
 
-    const conversationText = buildConversationText();
-    
-    const coachPrompt = `You are an expert ${professionConfig.name} educator providing real-time coaching to a trainee.
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
+    const thisRequestId = ++requestIdRef.current;
+    const thisFingerpint = currentFingerprint;
+
+    const fetchCoachAdvice = async () => {
+      setIsLoading(true);
+      setError(null);
+
+      // Build conversation text for the prompt
+      const conversationText = conversationHistory
+        .filter(msg => msg.role !== 'system')
+        .map(msg => `${msg.role === 'user' ? professionConfig.userLabel : professionConfig.patientLabel}: ${msg.content}`)
+        .join('\n');
+
+      const coachPrompt = `You are an expert ${professionConfig.name} educator providing real-time coaching to a trainee.
 
 IMPORTANT: You do NOT know what condition the ${professionConfig.patientLabel.toLowerCase()} has. Your job is to help the trainee use proper clinical reasoning to figure it out themselves.
 
@@ -109,78 +127,204 @@ Focus on PROCESS not ANSWERS:
 
 DO NOT suggest specific diagnoses or treatments. Help the trainee gather information systematically.`;
 
-    try {
-      const response = await fetch(`${apiConfig.apiUrl}/chat/completions`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${apiConfig.apiKey}`
-        },
-        body: JSON.stringify({
-          model: apiConfig.modelName,
-          messages: [{ role: 'user', content: coachPrompt }],
-          temperature: 0.7
-        }),
-        signal: abortControllerRef.current.signal
-      });
+      try {
+        const response = await fetch(`${apiConfig.apiUrl}/chat/completions`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${apiConfig.apiKey}`
+          },
+          body: JSON.stringify({
+            model: apiConfig.modelName,
+            messages: [{ role: 'user', content: coachPrompt }],
+            temperature: 0.7
+          }),
+          signal: controller.signal
+        });
 
-      if (!response.ok) {
-        throw new Error('Failed to get coach advice');
-      }
+        // Check if this request has been superseded
+        if (thisRequestId !== requestIdRef.current) {
+          return;
+        }
 
-      const data = await response.json();
-      let content = data.choices[0].message.content;
-      
-      // Handle markdown code blocks
-      const jsonMatch = content.match(/```(?:json)?\s*([\s\S]*?)```/);
-      if (jsonMatch) {
-        content = jsonMatch[1];
-      }
-      
-      const parsed = JSON.parse(content.trim());
-      
-      // Add IDs to suggestions
-      const suggestionsWithIds: CoachSuggestion[] = parsed.suggestions.map((s: any, idx: number) => ({
-        ...s,
-        id: `suggestion-${Date.now()}-${idx}`
-      }));
-      
-      setCoachData({
-        suggestions: suggestionsWithIds,
-        summary: parsed.summary,
-        missingAreas: parsed.missingAreas || [],
-        timestamp: Date.now()
-      });
-    } catch (err) {
-      if (err instanceof Error && err.name === 'AbortError') {
-        return; // Request was cancelled, don't update state
-      }
-      console.error('Coach error:', err);
-      setError('Unable to generate coaching advice');
-    } finally {
-      setIsLoading(false);
-    }
-  }, [conversationHistory, buildConversationText, apiConfig, professionConfig, coachData]);
+        if (!response.ok) {
+          throw new Error('Failed to get coach advice');
+        }
 
-  // Auto-refresh when conversation changes
-  useEffect(() => {
-    if (conversationHistory.length > 0) {
-      generateCoachAdvice();
-    }
-    
-    return () => {
-      if (abortControllerRef.current) {
-        abortControllerRef.current.abort();
+        const data = await response.json();
+        let content = data.choices[0].message.content;
+
+        // Handle markdown code blocks
+        const jsonMatch = content.match(/```(?:json)?\s*([\s\S]*?)```/);
+        if (jsonMatch) {
+          content = jsonMatch[1];
+        }
+
+        const parsed = JSON.parse(content.trim());
+
+        // Add IDs to suggestions
+        const suggestionsWithIds: CoachSuggestion[] = parsed.suggestions.map((s: any, idx: number) => ({
+          ...s,
+          id: `suggestion-${Date.now()}-${idx}`
+        }));
+
+        // Final check before updating state
+        if (thisRequestId !== requestIdRef.current) {
+          return;
+        }
+
+        setCoachData({
+          suggestions: suggestionsWithIds,
+          summary: parsed.summary,
+          missingAreas: parsed.missingAreas || [],
+          timestamp: Date.now()
+        });
+
+        lastProcessedFingerprintRef.current = thisFingerpint;
+        setError(null);
+
+      } catch (err) {
+        if (err instanceof Error && err.name === 'AbortError') {
+          return; // Request was cancelled, don't update state
+        }
+
+        // Only update error if this is still the current request
+        if (thisRequestId === requestIdRef.current) {
+          console.error('Coach error:', err);
+          setError('Unable to generate coaching advice');
+        }
+      } finally {
+        // Only update loading state if this is still the current request
+        if (thisRequestId === requestIdRef.current) {
+          setIsLoading(false);
+        }
       }
     };
-  }, [conversationHistory.length, generateCoachAdvice]);
+
+    fetchCoachAdvice();
+
+    // Cleanup on unmount or when effect re-runs
+    return () => {
+      controller.abort();
+    };
+  }, [currentFingerprint, conversationHistory, apiConfig, professionConfig]);
 
   const handleSuggestionClick = (suggestion: CoachSuggestion) => {
     onSuggestionClick(suggestion.fullText);
   };
 
   const handleRefresh = () => {
-    generateCoachAdvice(true);
+    // Force refresh by clearing the last processed fingerprint
+    lastProcessedFingerprintRef.current = '';
+    
+    // Cancel current request if any
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+    
+    // Create new controller and request
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
+    const thisRequestId = ++requestIdRef.current;
+
+    setIsLoading(true);
+    setError(null);
+
+    const conversationText = conversationHistory
+      .filter(msg => msg.role !== 'system')
+      .map(msg => `${msg.role === 'user' ? professionConfig.userLabel : professionConfig.patientLabel}: ${msg.content}`)
+      .join('\n');
+
+    const coachPrompt = `You are an expert ${professionConfig.name} educator providing real-time coaching to a trainee.
+
+IMPORTANT: You do NOT know what condition the ${professionConfig.patientLabel.toLowerCase()} has. Your job is to help the trainee use proper clinical reasoning to figure it out themselves.
+
+The trainee is practicing with a simulated ${professionConfig.patientLabel.toLowerCase()}. Here is the conversation so far:
+
+${conversationText || '(Conversation just started - the trainee has not asked any questions yet)'}
+
+Based on what has been discussed (or not discussed yet), provide coaching guidance to help the trainee:
+1. Identify what information they should gather next
+2. Suggest systematic assessment approaches
+3. Point out areas they haven't explored yet
+4. Guide their clinical reasoning WITHOUT revealing any diagnosis
+
+You MUST respond in EXACTLY this JSON format (no other text, just valid JSON):
+{
+  "suggestions": [
+    {
+      "text": "<description of what to ask/do>",
+      "type": "<one of: question, assessment, consideration, followup>",
+      "shortLabel": "<2-4 word label for the chip>",
+      "fullText": "<the exact question or statement to say, ready to send>"
+    }
+  ],
+  "summary": "<1-2 sentence overview of what the trainee should focus on next, based on clinical reasoning principles>",
+  "missingAreas": [
+    "<important clinical area not yet explored>",
+    "<another area to consider>"
+  ]
+}
+
+Guidelines:
+- Provide 3-5 suggestions prioritized by clinical importance
+- "question" type: Questions to ask the ${professionConfig.patientLabel.toLowerCase()} to gather more information
+- "assessment" type: Physical or mental assessments to perform
+- "consideration" type: Clinical reasoning points to keep in mind
+- "followup" type: Follow-up questions based on what was already discussed
+
+Focus on PROCESS not ANSWERS. DO NOT suggest specific diagnoses or treatments.`;
+
+    fetch(`${apiConfig.apiUrl}/chat/completions`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${apiConfig.apiKey}`
+      },
+      body: JSON.stringify({
+        model: apiConfig.modelName,
+        messages: [{ role: 'user', content: coachPrompt }],
+        temperature: 0.7
+      }),
+      signal: controller.signal
+    })
+      .then(response => {
+        if (thisRequestId !== requestIdRef.current) return null;
+        if (!response.ok) throw new Error('Failed to get coach advice');
+        return response.json();
+      })
+      .then(data => {
+        if (!data || thisRequestId !== requestIdRef.current) return;
+
+        let content = data.choices[0].message.content;
+        const jsonMatch = content.match(/```(?:json)?\s*([\s\S]*?)```/);
+        if (jsonMatch) content = jsonMatch[1];
+
+        const parsed = JSON.parse(content.trim());
+        const suggestionsWithIds: CoachSuggestion[] = parsed.suggestions.map((s: any, idx: number) => ({
+          ...s,
+          id: `suggestion-${Date.now()}-${idx}`
+        }));
+
+        if (thisRequestId !== requestIdRef.current) return;
+
+        setCoachData({
+          suggestions: suggestionsWithIds,
+          summary: parsed.summary,
+          missingAreas: parsed.missingAreas || [],
+          timestamp: Date.now()
+        });
+        lastProcessedFingerprintRef.current = currentFingerprint;
+        setError(null);
+        setIsLoading(false);
+      })
+      .catch(err => {
+        if (err.name === 'AbortError') return;
+        if (thisRequestId === requestIdRef.current) {
+          setError('Unable to generate coaching advice');
+          setIsLoading(false);
+        }
+      });
   };
 
   return (
@@ -191,14 +335,14 @@ DO NOT suggest specific diagnoses or treatments. Help the trainee gather informa
           {isLoading && (
             <span className="coach-header-status">
               <span className="coach-status-dot"></span>
-              Analyzing...
+              {coachData ? 'Updating...' : 'Analyzing...'}
             </span>
           )}
         </div>
         <button onClick={onClose} className="panel-close">×</button>
       </div>
       
-      <div className={`side-panel-content coach-content ${isLoading ? 'coach-loading' : ''}`}>
+      <div className={`side-panel-content coach-content ${isLoading && coachData ? 'coach-refreshing' : ''}`}>
         {/* Full-panel loading state for initial load */}
         {isLoading && !coachData && (
           <div className="coach-loading-full">
@@ -284,7 +428,7 @@ DO NOT suggest specific diagnoses or treatments. Help the trainee gather informa
           {isLoading ? (
             <>
               <span className="btn-spinner"></span>
-              Analyzing...
+              {coachData ? 'Updating...' : 'Analyzing...'}
             </>
           ) : (
             '🔄 Refresh'
@@ -313,26 +457,38 @@ export function InlineCoach({
 }: InlineCoachProps) {
   const [suggestions, setSuggestions] = useState<CoachSuggestion[]>([]);
   const [isLoading, setIsLoading] = useState(false);
-  const lastConversationLengthRef = useRef<number>(0);
+  
   const abortControllerRef = useRef<AbortController | null>(null);
+  const requestIdRef = useRef<number>(0);
+  const lastProcessedFingerprintRef = useRef<string>('');
 
   const professionConfig = professionConfigs[profession];
+  
+  const currentFingerprint = getConversationFingerprint(conversationHistory);
 
-  const generateQuickSuggestions = useCallback(async () => {
+  // Auto-refresh when conversation changes
+  useEffect(() => {
     if (!enabled) return;
     
-    const currentLength = conversationHistory.length;
-    if (currentLength === lastConversationLengthRef.current && suggestions.length > 0) {
+    // Skip if unchanged
+    if (currentFingerprint === lastProcessedFingerprintRef.current) {
       return;
     }
     
-    lastConversationLengthRef.current = currentLength;
-    
+    if (conversationHistory.length === 0) {
+      return;
+    }
+
+    // Cancel any in-flight request
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
     }
-    abortControllerRef.current = new AbortController();
-    
+
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
+    const thisRequestId = ++requestIdRef.current;
+    const thisFingerprint = currentFingerprint;
+
     setIsLoading(true);
 
     const conversationText = conversationHistory
@@ -340,7 +496,7 @@ export function InlineCoach({
       .slice(-6)
       .map(msg => `${msg.role === 'user' ? professionConfig.userLabel : professionConfig.patientLabel}: ${msg.content}`)
       .join('\n');
-    
+
     const quickPrompt = `You are a ${professionConfig.name} coach helping a trainee. You do NOT know the ${professionConfig.patientLabel.toLowerCase()}'s condition.
 
 Conversation so far:
@@ -357,73 +513,72 @@ Return ONLY a JSON array:
 
 Focus on gathering information, NOT diagnosing. No other text.`;
 
-    try {
-      const response = await fetch(`${apiConfig.apiUrl}/chat/completions`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${apiConfig.apiKey}`
-        },
-        body: JSON.stringify({
-          model: apiConfig.modelName,
-          messages: [{ role: 'user', content: quickPrompt }],
-          temperature: 0.7
-        }),
-        signal: abortControllerRef.current.signal
+    fetch(`${apiConfig.apiUrl}/chat/completions`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${apiConfig.apiKey}`
+      },
+      body: JSON.stringify({
+        model: apiConfig.modelName,
+        messages: [{ role: 'user', content: quickPrompt }],
+        temperature: 0.7
+      }),
+      signal: controller.signal
+    })
+      .then(response => {
+        if (thisRequestId !== requestIdRef.current) return null;
+        if (!response.ok) throw new Error('Failed');
+        return response.json();
+      })
+      .then(data => {
+        if (!data || thisRequestId !== requestIdRef.current) return;
+
+        let content = data.choices[0].message.content;
+
+        const jsonMatch = content.match(/```(?:json)?\s*([\s\S]*?)```/);
+        if (jsonMatch) content = jsonMatch[1];
+
+        const arrayMatch = content.match(/\[[\s\S]*\]/);
+        if (arrayMatch) content = arrayMatch[0];
+
+        const parsed = JSON.parse(content.trim());
+
+        if (thisRequestId !== requestIdRef.current) return;
+
+        const quickSuggestions: CoachSuggestion[] = parsed.slice(0, 3).map((s: any, idx: number) => ({
+          id: `quick-${Date.now()}-${idx}`,
+          text: s.fullText,
+          type: 'question' as SuggestionType,
+          shortLabel: s.shortLabel,
+          fullText: s.fullText
+        }));
+
+        setSuggestions(quickSuggestions);
+        lastProcessedFingerprintRef.current = thisFingerprint;
+        setIsLoading(false);
+      })
+      .catch(err => {
+        if (err.name === 'AbortError') return;
+        if (thisRequestId === requestIdRef.current) {
+          console.log('Inline coach error:', err);
+          setIsLoading(false);
+        }
       });
 
-      if (!response.ok) throw new Error('Failed');
-
-      const data = await response.json();
-      let content = data.choices[0].message.content;
-      
-      const jsonMatch = content.match(/```(?:json)?\s*([\s\S]*?)```/);
-      if (jsonMatch) {
-        content = jsonMatch[1];
-      }
-      
-      // Try to find JSON array in content
-      const arrayMatch = content.match(/\[[\s\S]*\]/);
-      if (arrayMatch) {
-        content = arrayMatch[0];
-      }
-      
-      const parsed = JSON.parse(content.trim());
-      
-      const quickSuggestions: CoachSuggestion[] = parsed.slice(0, 3).map((s: any, idx: number) => ({
-        id: `quick-${Date.now()}-${idx}`,
-        text: s.fullText,
-        type: 'question' as SuggestionType,
-        shortLabel: s.shortLabel,
-        fullText: s.fullText
-      }));
-      
-      setSuggestions(quickSuggestions);
-    } catch (err) {
-      if (err instanceof Error && err.name === 'AbortError') return;
-      console.log('Inline coach error:', err);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [conversationHistory, apiConfig, professionConfig, enabled, suggestions.length]);
-
-  useEffect(() => {
-    if (enabled && conversationHistory.length > 0) {
-      generateQuickSuggestions();
-    }
-    
     return () => {
-      if (abortControllerRef.current) {
-        abortControllerRef.current.abort();
-      }
+      controller.abort();
     };
-  }, [conversationHistory.length, enabled, generateQuickSuggestions]);
+  }, [currentFingerprint, conversationHistory, apiConfig, professionConfig, enabled]);
 
-  // Reset suggestions when disabled
+  // Reset when disabled
   useEffect(() => {
     if (!enabled) {
       setSuggestions([]);
-      lastConversationLengthRef.current = 0;
+      lastProcessedFingerprintRef.current = '';
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
     }
   }, [enabled]);
 
