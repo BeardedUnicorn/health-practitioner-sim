@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import './App.css';
 import { Profession, PatientSession, ApiConfig, Message, ProgressData, CaseSetup } from './types';
 import { professionConfigs } from './config/professionConfig';
@@ -38,6 +38,11 @@ function App() {
   const [performingAssessment, setPerformingAssessment] = useState(false);
   const [coachWidth, setCoachWidth] = useState(350);
   
+  // Streaming state
+  const [isStreaming, setIsStreaming] = useState(false);
+  const [streamingContent, setStreamingContent] = useState('');
+  const streamAbortRef = useRef<AbortController | null>(null);
+  
   // Case setup state
   const [pendingCaseSetup, setPendingCaseSetup] = useState<CaseSetup | null>(null);
   
@@ -58,11 +63,14 @@ function App() {
     setProgress(loadProgress());
   }, []);
 
-  // Cleanup abort controller on unmount
+  // Cleanup abort controllers on unmount
   useEffect(() => {
     return () => {
       if (abortControllerRef.current) {
         abortControllerRef.current.abort();
+      }
+      if (streamAbortRef.current) {
+        streamAbortRef.current.abort();
       }
     };
   }, []);
@@ -71,12 +79,44 @@ function App() {
     setProgress(loadProgress());
   };
 
+  // Abort current stream
+  const abortStream = useCallback(() => {
+    if (streamAbortRef.current) {
+      streamAbortRef.current.abort();
+      streamAbortRef.current = null;
+    }
+  }, []);
+
+  // Stop streaming handler
+  const handleStopStreaming = useCallback(() => {
+    if (isStreaming && streamingContent.trim()) {
+      abortStream();
+      // Commit partial content to history
+      setSession(prev => {
+        if (!prev) return null;
+        return {
+          ...prev,
+          conversationHistory: [
+            ...prev.conversationHistory,
+            { role: 'assistant', content: streamingContent }
+          ]
+        };
+      });
+    } else {
+      abortStream();
+    }
+    setIsStreaming(false);
+    setStreamingContent('');
+    setIsLoading(false);
+  }, [isStreaming, streamingContent, abortStream]);
+
   const handleProfessionSelect = (selectedProfession: Profession) => {
     setProfession(selectedProfession);
     setAppState('ready');
   };
 
   const handleChangeProfession = () => {
+    abortStream();
     setSession(null);
     setFeedback(null);
     setShowAnswer(false);
@@ -87,6 +127,8 @@ function App() {
     setUserFinalAnswer('');
     setPendingCaseSetup(null);
     setProfession(null);
+    setIsStreaming(false);
+    setStreamingContent('');
     setAppState('profession-select');
   };
 
@@ -161,6 +203,8 @@ function App() {
     setShowCoach(false);
     setShowEvaluation(false);
     setUserFinalAnswer('');
+    setIsStreaming(false);
+    setStreamingContent('');
     
     try {
       const setupPrompt = professionConfig.getSetupPrompt(
@@ -265,7 +309,15 @@ function App() {
   };
 
   const sendMessage = async () => {
-    if (!currentMessage.trim() || !session || !professionConfig || isLoading) return;
+    if (!currentMessage.trim() || !session || !professionConfig) return;
+    
+    // If currently streaming, stop and commit partial content first
+    if (isStreaming) {
+      handleStopStreaming();
+      return; // Let user send on next click
+    }
+    
+    if (isLoading) return;
 
     const userMessage = currentMessage.trim();
     setCurrentMessage('');
@@ -313,7 +365,12 @@ function App() {
       return;
     }
 
+    // Start streaming response
+    const controller = new AbortController();
+    streamAbortRef.current = controller;
     setIsLoading(true);
+    setIsStreaming(false);
+    setStreamingContent('');
 
     try {
       const response = await fetch(`${apiConfig.apiUrl}/chat/completions`, {
@@ -328,38 +385,92 @@ function App() {
             role: msg.role,
             content: msg.content
           })),
-          temperature: 0.7
-        })
+          temperature: 0.7,
+          stream: true
+        }),
+        signal: controller.signal
       });
 
       if (!response.ok) {
         throw new Error('Failed to get response from API');
       }
 
-      const data = await response.json();
-      const assistantMessage = data.choices[0].message.content;
+      const reader = response.body!.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+      let fullContent = '';
 
-      setSession(prevSession => {
-        if (!prevSession) return null;
-        return {
-          ...prevSession,
-          conversationHistory: [
-            ...prevSession.conversationHistory,
-            { role: 'assistant', content: assistantMessage }
-          ],
-          turnsUsed: newTurnsUsed
-        };
-      });
+      // Got first response, switch from loading to streaming
+      setIsLoading(false);
+      setIsStreaming(true);
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop() || '';
+
+        for (const line of lines) {
+          const trimmed = line.trim();
+          if (trimmed.startsWith('data: ')) {
+            const data = trimmed.slice(6);
+            if (data === '[DONE]') {
+              break;
+            }
+            try {
+              const parsed = JSON.parse(data);
+              const content = parsed.choices?.[0]?.delta?.content;
+              if (content) {
+                fullContent += content;
+                setStreamingContent(fullContent);
+              }
+            } catch {
+              // Skip malformed JSON chunks
+            }
+          }
+        }
+      }
+
+      // Streaming complete - add full message to history
+      if (fullContent) {
+        setSession(prevSession => {
+          if (!prevSession) return null;
+          return {
+            ...prevSession,
+            conversationHistory: [
+              ...prevSession.conversationHistory,
+              { role: 'assistant', content: fullContent }
+            ]
+          };
+        });
+      }
+
     } catch (error) {
+      if (error instanceof Error && error.name === 'AbortError') {
+        // Streaming was cancelled - partial content already handled by handleStopStreaming
+        console.log('Streaming cancelled');
+        return;
+      }
+      
       const message = error instanceof Error ? error.message : String(error);
       alert(`Error sending message: ${message}`);
     } finally {
+      setIsStreaming(false);
+      setStreamingContent('');
       setIsLoading(false);
+      streamAbortRef.current = null;
     }
   };
 
   const handleForceSubmit = () => {
     if (!session || !professionConfig) return;
+    
+    // Stop any streaming
+    if (isStreaming) {
+      handleStopStreaming();
+    }
     
     setUserFinalAnswer('Time ran out - no diagnosis submitted');
     setFeedback({
@@ -374,6 +485,11 @@ function App() {
 
   const performAssessment = async (assessmentType: string, assessmentName: string) => {
     if (!session || !professionConfig || performingAssessment) return;
+
+    // Stop any current streaming
+    if (isStreaming) {
+      handleStopStreaming();
+    }
 
     setPerformingAssessment(true);
 
@@ -406,6 +522,11 @@ function App() {
       assessmentType
     );
 
+    // Stream assessment response
+    const controller = new AbortController();
+    streamAbortRef.current = controller;
+    setIsLoading(true);
+
     try {
       const response = await fetch(`${apiConfig.apiUrl}/chat/completions`, {
         method: 'POST',
@@ -419,18 +540,53 @@ function App() {
             { role: 'system', content: session.conversationHistory[0].content },
             { role: 'user', content: assessmentPrompt }
           ],
-          temperature: 0.5
-        })
+          temperature: 0.5,
+          stream: true
+        }),
+        signal: controller.signal
       });
 
       if (!response.ok) {
         throw new Error('Failed to get assessment results');
       }
 
-      const data = await response.json();
-      const assessmentResult = data.choices[0].message.content;
+      const reader = response.body!.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+      let fullContent = '';
 
-      const assessmentMessage = `📋 ${assessmentName}: ${assessmentResult}`;
+      setIsLoading(false);
+      setIsStreaming(true);
+      setStreamingContent(`📋 ${assessmentName}: `);
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop() || '';
+
+        for (const line of lines) {
+          const trimmed = line.trim();
+          if (trimmed.startsWith('data: ')) {
+            const data = trimmed.slice(6);
+            if (data === '[DONE]') break;
+            try {
+              const parsed = JSON.parse(data);
+              const content = parsed.choices?.[0]?.delta?.content;
+              if (content) {
+                fullContent += content;
+                setStreamingContent(`📋 ${assessmentName}: ${fullContent}`);
+              }
+            } catch {
+              // Skip malformed JSON
+            }
+          }
+        }
+      }
+
+      const assessmentMessage = `📋 ${assessmentName}: ${fullContent}`;
       
       setSession(prevSession => {
         if (!prevSession) return null;
@@ -442,15 +598,25 @@ function App() {
           ]
         };
       });
+
     } catch (error) {
+      if (error instanceof Error && error.name === 'AbortError') {
+        console.log('Assessment streaming cancelled');
+        return;
+      }
       const message = error instanceof Error ? error.message : String(error);
       alert(`Error performing assessment: ${message}`);
     } finally {
+      setIsStreaming(false);
+      setStreamingContent('');
+      setIsLoading(false);
       setPerformingAssessment(false);
+      streamAbortRef.current = null;
     }
   };
 
   const handleEndSession = () => {
+    abortStream();
     setSession(null);
     setFeedback(null);
     setShowAnswer(false);
@@ -460,6 +626,8 @@ function App() {
     setShowEvaluation(false);
     setUserFinalAnswer('');
     setPendingCaseSetup(null);
+    setIsStreaming(false);
+    setStreamingContent('');
     setAppState('ready');
   };
 
@@ -587,7 +755,7 @@ function App() {
               <button 
                 onClick={handleOpenCaseSetup} 
                 className="btn-secondary" 
-                disabled={isLoading}
+                disabled={isLoading || isStreaming}
               >
                 🔄 New {professionConfig.patientLabel}
               </button>
@@ -654,7 +822,7 @@ function App() {
                 <div className="side-panel-content">
                   <Toolkit
                     sections={professionConfig.toolkit}
-                    isLoading={performingAssessment}
+                    isLoading={performingAssessment || isStreaming}
                     onAssessment={performAssessment}
                   />
                 </div>
@@ -666,7 +834,9 @@ function App() {
               profession={profession!}
               professionConfig={professionConfig}
               currentMessage={currentMessage}
-              isLoading={isLoading || performingAssessment}
+              isLoading={isLoading}
+              isStreaming={isStreaming}
+              streamingContent={streamingContent}
               feedback={feedback}
               showCoach={showCoach}
               disabled={turnsExhausted}
@@ -677,6 +847,7 @@ function App() {
               onNewSession={handleOpenCaseSetup}
               onToggleCoach={() => setShowCoach(!showCoach)}
               onToggleInlineCoach={() => setInlineCoachEnabled(!inlineCoachEnabled)}
+              onStopStreaming={handleStopStreaming}
             />
 
             {/* Turn Counter for Time Pressure Mode */}

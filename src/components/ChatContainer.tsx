@@ -1,6 +1,6 @@
-import { useRef, useEffect } from 'react';
+import { useRef, useEffect, useCallback } from 'react';
 import { PatientSession, ProfessionConfig, Profession, ApiConfig } from '../types';
-import { Message, TypingIndicator } from './Message';
+import { Message, StreamingMessage, TypingIndicator } from './Message';
 import { InlineCoach } from './Coach';
 import './ChatContainer.css';
 
@@ -10,6 +10,8 @@ interface ChatContainerProps {
   professionConfig: ProfessionConfig;
   currentMessage: string;
   isLoading: boolean;
+  isStreaming: boolean;
+  streamingContent: string;
   feedback: { correct: boolean; message: string } | null;
   showCoach: boolean;
   disabled?: boolean;
@@ -20,6 +22,7 @@ interface ChatContainerProps {
   onNewSession: () => void;
   onToggleCoach: () => void;
   onToggleInlineCoach: () => void;
+  onStopStreaming?: () => void;
 }
 
 export function ChatContainer({
@@ -28,6 +31,8 @@ export function ChatContainer({
   professionConfig,
   currentMessage,
   isLoading,
+  isStreaming,
+  streamingContent,
   feedback,
   showCoach,
   disabled = false,
@@ -37,17 +42,82 @@ export function ChatContainer({
   onSend,
   onNewSession,
   onToggleCoach,
-  onToggleInlineCoach
+  onToggleInlineCoach,
+  onStopStreaming
 }: ChatContainerProps) {
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
+  const messagesContainerRef = useRef<HTMLDivElement | null>(null);
+  const shouldAutoScrollRef = useRef(true);
+  const lastScrollTopRef = useRef(0);
 
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  };
+  // Check if scrolled to bottom (within threshold)
+  const isNearBottom = useCallback(() => {
+    const container = messagesContainerRef.current;
+    if (!container) return true;
+    const threshold = 150;
+    return container.scrollHeight - container.scrollTop - container.clientHeight < threshold;
+  }, []);
 
+  // Scroll to bottom smoothly
+  const scrollToBottom = useCallback((behavior: ScrollBehavior = 'smooth') => {
+    if (shouldAutoScrollRef.current) {
+      messagesEndRef.current?.scrollIntoView({ behavior });
+    }
+  }, []);
+
+  // Handle user scroll
+  const handleScroll = useCallback(() => {
+    const container = messagesContainerRef.current;
+    if (!container) return;
+
+    const currentScrollTop = container.scrollTop;
+    const isScrollingUp = currentScrollTop < lastScrollTopRef.current;
+    lastScrollTopRef.current = currentScrollTop;
+
+    // If user scrolls up during streaming, disable auto-scroll
+    if (isScrollingUp && isStreaming) {
+      shouldAutoScrollRef.current = false;
+    }
+
+    // If user scrolls to bottom, re-enable auto-scroll
+    if (isNearBottom()) {
+      shouldAutoScrollRef.current = true;
+    }
+  }, [isStreaming, isNearBottom]);
+
+  // When streaming starts, check if we should auto-scroll
   useEffect(() => {
-    scrollToBottom();
-  }, [session.conversationHistory]);
+    if (isStreaming) {
+      shouldAutoScrollRef.current = isNearBottom();
+    }
+  }, [isStreaming, isNearBottom]);
+
+  // Auto-scroll during streaming
+  useEffect(() => {
+    if (isStreaming && streamingContent) {
+      scrollToBottom();
+    }
+  }, [streamingContent, isStreaming, scrollToBottom]);
+
+  // Scroll when new messages are added (non-streaming)
+  useEffect(() => {
+    if (!isStreaming && !isLoading) {
+      // Small delay to let React render the new message
+      requestAnimationFrame(() => {
+        if (isNearBottom()) {
+          scrollToBottom();
+        }
+      });
+    }
+  }, [session.conversationHistory.length, isStreaming, isLoading, scrollToBottom, isNearBottom]);
+
+  // Reset auto-scroll when user sends a message
+  useEffect(() => {
+    if (isLoading && !isStreaming) {
+      shouldAutoScrollRef.current = true;
+      scrollToBottom();
+    }
+  }, [isLoading, isStreaming, scrollToBottom]);
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -60,11 +130,15 @@ export function ChatContainer({
     onMessageChange(text);
   };
 
-  const isInputDisabled = isLoading || !!feedback || disabled;
+  const isInputDisabled = (isLoading && !isStreaming) || !!feedback || disabled;
 
   return (
     <div className="chat-container">
-      <div className="messages">
+      <div 
+        className="messages" 
+        ref={messagesContainerRef}
+        onScroll={handleScroll}
+      >
         {session.conversationHistory
           .filter(msg => msg.role !== 'system')
           .map((msg, idx) => (
@@ -77,12 +151,24 @@ export function ChatContainer({
               patientEmoji={professionConfig.patientEmoji}
             />
           ))}
-        {isLoading && (
+        
+        {/* Show typing indicator while waiting for first token */}
+        {isLoading && !isStreaming && (
           <TypingIndicator
             patientLabel={professionConfig.patientLabel}
             patientEmoji={professionConfig.patientEmoji}
           />
         )}
+        
+        {/* Show streaming message */}
+        {isStreaming && (
+          <StreamingMessage
+            content={streamingContent}
+            patientLabel={professionConfig.patientLabel}
+            patientEmoji={professionConfig.patientEmoji}
+          />
+        )}
+        
         <div ref={messagesEndRef} />
       </div>
 
@@ -140,13 +226,23 @@ export function ChatContainer({
           }
           disabled={isInputDisabled && !disabled}
         />
-        <button 
-          onClick={onSend} 
-          disabled={isLoading || !currentMessage.trim() || !!feedback} 
-          className="btn-primary"
-        >
-          Send
-        </button>
+        {isStreaming ? (
+          <button 
+            onClick={onStopStreaming} 
+            className="btn-secondary btn-stop"
+            title="Stop generating"
+          >
+            ⏹️ Stop
+          </button>
+        ) : (
+          <button 
+            onClick={onSend} 
+            disabled={isLoading || !currentMessage.trim() || !!feedback} 
+            className="btn-primary"
+          >
+            Send
+          </button>
+        )}
       </div>
       
       <div className="hint">

@@ -120,6 +120,17 @@
   flex-shrink: 0;
 }
 
+.btn-stop {
+  background: var(--error-bg) !important;
+  border-color: var(--error-border) !important;
+  color: var(--error) !important;
+}
+
+.btn-stop:hover {
+  background: var(--error) !important;
+  color: white !important;
+}
+
 /* Coach Toggle Button */
 .btn-coach {
   width: 44px;

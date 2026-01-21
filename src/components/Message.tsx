@@ -25,6 +25,30 @@ export function Message({ message, userLabel, userEmoji, patientLabel, patientEm
   );
 }
 
+interface StreamingMessageProps {
+  content: string;
+  patientLabel: string;
+  patientEmoji: string;
+}
+
+export function StreamingMessage({ content, patientLabel, patientEmoji }: StreamingMessageProps) {
+  return (
+    <div className="message assistant">
+      <div className="message-label">{patientEmoji} {patientLabel}</div>
+      <div className="message-content streaming">
+        {content ? (
+          <>
+            <ReactMarkdown>{content}</ReactMarkdown>
+            <span className="streaming-cursor" />
+          </>
+        ) : (
+          <span className="streaming-cursor initial" />
+        )}
+      </div>
+    </div>
+  );
+}
+
 interface TypingIndicatorProps {
   patientLabel: string;
   patientEmoji: string;
@@ -34,7 +58,13 @@ export function TypingIndicator({ patientLabel, patientEmoji }: TypingIndicatorP
   return (
     <div className="message assistant">
       <div className="message-label">{patientEmoji} {patientLabel}</div>
-      <div className="message-content typing">Thinking</div>
+      <div className="message-content typing">
+        <span className="typing-dots">
+          <span></span>
+          <span></span>
+          <span></span>
+        </span>
+      </div>
     </div>
   );
 }
