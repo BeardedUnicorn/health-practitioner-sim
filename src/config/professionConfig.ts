@@ -933,11 +933,231 @@ Keep response 2-4 sentences, specific and actionable.
 Provide the ${assessmentName} guidance now:`
 };
 
+export const couplesTherapistConfig: ProfessionConfig = {
+  id: 'couplesTherapist',
+  name: 'Couples Therapist',
+  emoji: '💑',
+  title: 'Couples Therapy Training Simulator',
+  description: 'Practice facilitating sessions with two partners, managing emotional dynamics, de-escalation, and guiding repair attempts.',
+  userLabel: 'Therapist',
+  userEmoji: '💚',
+  patientLabel: 'Couple',
+  patientEmoji: '💑',
+  partnerALabel: 'Partner A',
+  partnerAEmoji: '🧑',
+  partnerBLabel: 'Partner B', 
+  partnerBEmoji: '👩',
+  isCouplesTherapy: true,
+  diagnosisHint: '💡 Tip: When ready to summarize the session, type "My session summary is [your formulation of the cycle and progress]"',
+  diagnosisPattern: /my\s+session\s+summary\s+is\s+(.+)/i,
+  supportedSettings: ['clinic', 'telehealth'],
+  defaultSetting: 'clinic',
+  categories: [
+    'Communication Breakdown (e.g., not feeling heard, talking past each other, stonewalling, criticism)',
+    'Pursue-Withdraw Cycle (e.g., one partner chases connection while other shuts down)',
+    'Attack-Defend Pattern (e.g., blame-counterblame, mutual criticism, defensive reactions)',
+    'Trust & Betrayal Recovery (e.g., infidelity aftermath, broken promises, secret-keeping)',
+    'Emotional Disconnection (e.g., feeling like roommates, loss of intimacy, loneliness in relationship)',
+    'Parenting Conflicts (e.g., different discipline styles, co-parenting stress, step-family dynamics)',
+    'Financial Stress (e.g., spending conflicts, financial secrets, different money values)',
+    'Intimacy & Sexual Issues (e.g., desire discrepancy, avoiding physical closeness, past trauma)',
+    'Extended Family Boundaries (e.g., in-law conflicts, enmeshment, loyalty conflicts)',
+    'Life Transitions (e.g., new baby adjustment, empty nest, retirement, job loss, relocation)',
+    'Different Attachment Styles (e.g., anxious-avoidant pairing, triggered attachment wounds)',
+    'Cultural or Religious Differences (e.g., different backgrounds, value conflicts, holiday tensions)',
+    'Work-Life Balance (e.g., workaholism, feeling neglected, unequal domestic labor)',
+    'Anger & Escalation (e.g., volatile arguments, yelling, emotional flooding, repair failure)',
+    'Grief & Loss Together (e.g., miscarriage, death of family member, coping differently)',
+    'Premarital Preparation (e.g., discussing expectations, family planning, roles)',
+    'Relationship Ambivalence (e.g., one foot out the door, considering separation, mixed commitment)'
+  ],
+  toolkit: [
+    {
+      title: 'Cycle Mapping',
+      items: [
+        { id: 'identify_cycle', label: 'Map Negative Cycle', emoji: '🔄', assessmentType: 'cycle', assessmentName: 'Negative Interaction Cycle Mapping' },
+        { id: 'triggers', label: 'Identify Triggers', emoji: '⚡', assessmentType: 'cycle', assessmentName: 'Escalation Trigger Identification' },
+        { id: 'positions', label: 'Name Positions', emoji: '📍', assessmentType: 'cycle', assessmentName: 'Pursue-Withdraw Position Identification' },
+        { id: 'underlying', label: 'Underlying Emotions', emoji: '💔', assessmentType: 'cycle', assessmentName: 'Underlying Emotion Exploration' }
+      ]
+    },
+    {
+      title: 'Session Structure',
+      items: [
+        { id: 'turn_taking', label: 'Structured Turn-Taking', emoji: '🎤', assessmentType: 'structure', assessmentName: 'Speaker-Listener Technique' },
+        { id: 'timeout', label: 'Call Timeout', emoji: '⏸️', assessmentType: 'structure', assessmentName: 'Therapeutic Timeout' },
+        { id: 'ground_rules', label: 'Review Ground Rules', emoji: '📋', assessmentType: 'structure', assessmentName: 'Session Ground Rules' },
+        { id: 'check_temp', label: 'Check Temperature', emoji: '🌡️', assessmentType: 'structure', assessmentName: 'Emotional Temperature Check' }
+      ]
+    },
+    {
+      title: 'De-escalation',
+      items: [
+        { id: 'slow_down', label: 'Slow the Process', emoji: '🐢', assessmentType: 'deescalation', assessmentName: 'Process Slowing Intervention' },
+        { id: 'soften', label: 'Soften Startup', emoji: '🌸', assessmentType: 'deescalation', assessmentName: 'Softened Startup Coaching' },
+        { id: 'physiological', label: 'Check Flooding', emoji: '🫀', assessmentType: 'deescalation', assessmentName: 'Physiological Flooding Assessment' },
+        { id: 'separate_reflect', label: 'Separate & Reflect', emoji: '🪞', assessmentType: 'deescalation', assessmentName: 'Individual Reflection Moment' }
+      ]
+    },
+    {
+      title: 'Emotional Work',
+      items: [
+        { id: 'emotion_label', label: 'Label Emotions', emoji: '🏷️', assessmentType: 'emotional', assessmentName: 'Emotion Labeling Exercise' },
+        { id: 'validate_both', label: 'Validate Both', emoji: '✅', assessmentType: 'emotional', assessmentName: 'Dual Validation' },
+        { id: 'attachment', label: 'Attachment Needs', emoji: '🔗', assessmentType: 'emotional', assessmentName: 'Attachment Need Exploration' },
+        { id: 'empathy_bridge', label: 'Build Empathy Bridge', emoji: '🌉', assessmentType: 'emotional', assessmentName: 'Empathy Building Exercise' }
+      ]
+    },
+    {
+      title: 'Repair Work',
+      items: [
+        { id: 'repair_prompt', label: 'Prompt Repair', emoji: '🔧', assessmentType: 'repair', assessmentName: 'Repair Attempt Prompt' },
+        { id: 'own_impact', label: 'Own Impact', emoji: '🎯', assessmentType: 'repair', assessmentName: 'Taking Responsibility for Impact' },
+        { id: 'express_need', label: 'Express Need', emoji: '💬', assessmentType: 'repair', assessmentName: 'Need Expression Coaching' },
+        { id: 'make_request', label: 'Make Specific Request', emoji: '🙏', assessmentType: 'repair', assessmentName: 'Specific Request Formulation' }
+      ]
+    },
+    {
+      title: 'Reframing',
+      items: [
+        { id: 'reframe_complaint', label: 'Reframe to Need', emoji: '🔀', assessmentType: 'reframe', assessmentName: 'Complaint to Need Reframe' },
+        { id: 'externalize', label: 'Externalize Problem', emoji: '📤', assessmentType: 'reframe', assessmentName: 'Problem Externalization' },
+        { id: 'positive_intent', label: 'Find Positive Intent', emoji: '💎', assessmentType: 'reframe', assessmentName: 'Positive Intent Reframe' }
+      ]
+    },
+    {
+      title: 'Safety & Assessment',
+      items: [
+        { id: 'safety_screen', label: 'Safety Screening', emoji: '🛡️', assessmentType: 'safety', assessmentName: 'Domestic Violence Safety Screening' },
+        { id: 'individual_check', label: 'Individual Check-in', emoji: '👤', assessmentType: 'safety', assessmentName: 'Individual Safety Check' },
+        { id: 'commitment_check', label: 'Commitment Level', emoji: '💍', assessmentType: 'assessment', assessmentName: 'Relationship Commitment Assessment' }
+      ]
+    },
+    {
+      title: 'Session Close',
+      items: [
+        { id: 'summarize', label: 'Summarize Session', emoji: '📝', assessmentType: 'closing', assessmentName: 'Session Summary' },
+        { id: 'homework', label: 'Assign Homework', emoji: '📚', assessmentType: 'closing', assessmentName: 'Couples Homework Assignment' },
+        { id: 'appreciation', label: 'Appreciation Exercise', emoji: '🙏', assessmentType: 'closing', assessmentName: 'Mutual Appreciation Exchange' }
+      ]
+    }
+  ],
+  getSetupPrompt: (category: string, difficulty?: Difficulty, setting?: ClinicalSetting) => `You are a couples therapy education system. Generate a realistic couple scenario for couples therapy training.
+
+IMPORTANT: You MUST create a scenario from this category: ${category}
+Create a realistic couple with distinct personalities, a clear negative interaction cycle, and specific dynamics.
+
+${getDifficultyInstructions(difficulty)}
+${getSettingInstructions(setting)}
+
+You must respond in EXACTLY this format (including the labels):
+NEGATIVE_CYCLE: [describe the couple's primary negative interaction cycle, e.g., "pursue-withdraw" or "attack-defend"]
+PARTNER_A_NAME: [first name]
+PARTNER_A_AGE: [age]
+PARTNER_A_PROFILE: [personality, communication style, attachment tendency, role in cycle (e.g., pursuer/withdrawer)]
+PARTNER_B_NAME: [first name]  
+PARTNER_B_AGE: [age]
+PARTNER_B_PROFILE: [personality, communication style, attachment tendency, role in cycle]
+RELATIONSHIP_DURATION: [how long together]
+PRESENTING_ISSUE: [what brought them to therapy - the surface complaint]
+UNDERLYING_DYNAMICS: [deeper attachment wounds, fears, unmet needs driving the cycle]
+ESCALATION_TRIGGERS: [specific topics or behaviors that escalate conflict]
+REPAIR_OPPORTUNITIES: [moments where repair could happen, what each partner needs to repair]
+SESSION_GOAL: [realistic goal for this session]
+CURRENT_EMOTIONAL_STATE: [how each partner is feeling coming into session]
+
+Make the couple feel REAL:
+- Give them specific details and history
+- Each partner should have valid feelings and perspectives
+- Include specific examples of their cycle in action
+- Show both partners' contributions to the cycle (no villains)
+- Include what each partner is longing for underneath
+
+Now generate a couple for ${category}:`,
+
+  getSystemPrompt: (setupContent: string, difficulty?: Difficulty, setting?: ClinicalSetting) => `You are simulating BOTH partners in a couples therapy session. You will roleplay as two distinct people with their own voices, perspectives, and emotional responses.
+
+THE COUPLE'S PROFILE:
+${setupContent}
+
+${getDifficultyInstructions(difficulty)}
+${getSettingInstructions(setting)}
+
+CRITICAL INSTRUCTIONS FOR SIMULATING THE COUPLE:
+
+1. FORMAT: Always clearly indicate who is speaking using this format:
+   [Partner A - Name]: "Their words and *nonverbal actions*"
+   [Partner B - Name]: "Their response and *nonverbal actions*"
+
+2. DISTINCT VOICES: Each partner must sound different:
+   - Different speech patterns, vocabulary, emotional expression
+   - One might be more verbal, one more withdrawn
+   - Show their different attachment styles in how they communicate
+
+3. REALISTIC DYNAMICS:
+   - Partners interrupt, talk over, or react to each other
+   - Show the negative cycle in action (e.g., one pursues, other withdraws)
+   - Include nonverbal cues: *sighs*, *looks away*, *leans forward*, *crosses arms*
+   - Emotional escalation and de-escalation should feel natural
+   - Partners may have different versions of the same events
+
+4. RESPOND TO THERAPIST INTERVENTIONS:
+   - When therapist asks one partner to speak, that partner responds
+   - When asked to do an exercise, attempt it (may succeed or struggle)
+   - Show realistic resistance or breakthrough moments
+   - May initially reject reframes but can soften with good facilitation
+
+5. ESCALATION MOMENTS:
+   - Include moments where tension rises
+   - Show flooding, defensiveness, stonewalling, criticism, contempt realistically
+   - Give the therapist opportunities to intervene
+   - Don't resolve too easily - couples therapy is hard work
+
+6. REPAIR OPPORTUNITIES:
+   - Include moments where one partner almost reaches out
+   - Show vulnerability breaking through sometimes
+   - Respond to therapist-facilitated repair attempts
+   - Small repairs are more realistic than big breakthroughs
+
+7. EACH RESPONSE should include BOTH partners reacting/speaking unless:
+   - Therapist specifically asked to hear from only one
+   - One partner is deliberately silent (show this: *remains quiet, looking down*)
+
+8. DO NOT:
+   - Have partners suddenly understand everything
+   - Make one partner clearly "right" and other "wrong"  
+   - Reveal the "negative cycle" label - you're living it, not analyzing it
+   - Be overly cooperative - real couples resist change
+
+Remember: You are BOTH partners. The user is the THERAPIST facilitating. Create realistic, challenging, but workable dynamics.`,
+
+  getAssessmentPrompt: (diagnosis: string, assessmentName: string, assessmentType: string) => {
+    // For couples therapy, "diagnosis" is the negative cycle
+    const cycleInfo = diagnosis;
+    
+    return `Based on this couple's dynamic (${cycleInfo}), provide the result of performing: ${assessmentName}
+
+This is a ${assessmentType} intervention in couples therapy.
+
+Respond AS THE COUPLE - show how each partner responds to this intervention. Use the format:
+[Partner A - Name]: "response" *nonverbal*
+[Partner B - Name]: "response" *nonverbal*
+
+If it's an observation/assessment by the therapist, describe what the therapist would observe from each partner.
+
+Keep it realistic - interventions don't always work perfectly. Show authentic responses.
+
+Provide the ${assessmentName} result now:`;
+  }
+};
+
+// Update the professionConfigs export to include the new config
 export const professionConfigs: Record<string, ProfessionConfig> = {
   nurse: nurseConfig,
   psychiatrist: psychiatristConfig,
   psychologist: psychologistConfig,
   therapist: therapistConfig,
   doula: doulaConfig,
-  pregnancyPartner: pregnancyPartnerConfig
+  pregnancyPartner: pregnancyPartnerConfig,
+  couplesTherapist: couplesTherapistConfig
 };

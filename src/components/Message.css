@@ -55,6 +55,61 @@
   border-bottom-left-radius: var(--radius-sm);
 }
 
+/* ===== Couples Therapy Styles ===== */
+.couples-message-container {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  max-width: 85%;
+  align-self: flex-start;
+}
+
+.couples-message-container .message {
+  max-width: 100%;
+}
+
+/* Partner A styling - warmer tone */
+.message.partner-a .message-content {
+  background: linear-gradient(135deg, #3b4a6b 0%, #2d3a5c 100%);
+  border: 1px solid rgba(99, 132, 241, 0.3);
+  color: var(--text-primary);
+}
+
+.message.partner-a .message-label {
+  color: #8ba4d9;
+}
+
+/* Partner B styling - cooler tone */
+.message.partner-b .message-content {
+  background: linear-gradient(135deg, #4a3b5c 0%, #3d2d4a 100%);
+  border: 1px solid rgba(168, 132, 241, 0.3);
+  color: var(--text-primary);
+}
+
+.message.partner-b .message-label {
+  color: #b8a4d9;
+}
+
+/* Nonverbal action styling within messages */
+.message.partner-a .message-content em,
+.message.partner-b .message-content em {
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+/* Couples typing indicator */
+.couples-typing-indicator .message-content.typing {
+  background: linear-gradient(135deg, #3b4a6b 0%, #4a3b5c 100%);
+  border: 1px solid rgba(132, 132, 241, 0.3);
+}
+
+/* Streaming cursor in couples messages */
+.couples-message-container.streaming .message:last-child .message-content {
+  position: relative;
+}
+
+/* ===== Rest of existing styles ===== */
+
 /* Streaming Message Styles */
 .message-content.streaming {
   position: relative;

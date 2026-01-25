@@ -30,6 +30,8 @@ interface EvaluationData {
   safetyFlags: string[];
   suggestedActions: string[];
   summary: string;
+  // Couples therapy specific
+  nextSessionGoals?: string[];
 }
 
 const SETTING_LABELS: Record<ClinicalSetting, string> = {
@@ -65,6 +67,8 @@ export function SessionEvaluation({
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [hasSaved, setHasSaved] = useState(false);
+
+  const isCouplesTherapy = professionConfig.isCouplesTherapy;
 
   useEffect(() => {
     generateEvaluation();
@@ -110,76 +114,147 @@ export function SessionEvaluation({
       .map(msg => `${msg.role === 'user' ? professionConfig.userLabel : professionConfig.patientLabel}: ${msg.content}`)
       .join('\n');
 
-    // Build context-aware evaluation prompt
+    // Build evaluation prompt based on profession type
+    let evaluationPrompt: string;
+    
+    if (isCouplesTherapy) {
+      evaluationPrompt = buildCouplesTherapyEvaluationPrompt(conversationText, diagnosis, userAnswer);
+    } else {
+      evaluationPrompt = buildStandardEvaluationPrompt(conversationText, diagnosis, userAnswer, wasCorrect);
+    }
+
+    try {
+      const response = await fetch(`${apiConfig.apiUrl}/chat/completions`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${apiConfig.apiKey}`
+        },
+        body: JSON.stringify({
+          model: apiConfig.modelName,
+          messages: [{ role: 'user', content: evaluationPrompt }],
+          temperature: 0.3
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to generate evaluation');
+      }
+
+      const data = await response.json();
+      const content = data.choices[0].message.content;
+      
+      let jsonContent = content;
+      
+      const jsonMatch = content.match(/```(?:json)?\s*([\s\S]*?)```/);
+      if (jsonMatch) {
+        jsonContent = jsonMatch[1];
+      }
+      
+      const evaluationData: EvaluationData = JSON.parse(jsonContent.trim());
+      setEvaluation(evaluationData);
+    } catch (err) {
+      console.error('Evaluation error:', err);
+      setError('Unable to generate evaluation. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const buildCouplesTherapyEvaluationPrompt = (conversationText: string, negativeCycle: string, userSummary: string) => {
+    return `You are an expert couples therapy supervisor evaluating a training session.
+
+## Session Information
+- This was a couples therapy session with two partners
+- The couple's negative cycle: ${negativeCycle}
+- Trainee's session summary: ${userSummary}
+
+## Full Session Transcript:
+${conversationText}
+
+## Evaluation Task
+Evaluate this couples therapy session comprehensively.
+
+You MUST respond in EXACTLY this JSON format (no other text, just valid JSON):
+{
+  "overallScore": <number 0-100>,
+  "scoreBreakdown": [
+    {"category": "Neutrality & Alliance Balance", "score": <0-15>, "maxScore": 15},
+    {"category": "Accurate Reflection of Each Partner", "score": <0-15>, "maxScore": 15},
+    {"category": "Cycle Identification & Naming", "score": <0-15>, "maxScore": 15},
+    {"category": "De-escalation Skills", "score": <0-15>, "maxScore": 15},
+    {"category": "Repair Facilitation", "score": <0-15>, "maxScore": 15},
+    {"category": "Emotional Attunement", "score": <0-10>, "maxScore": 10},
+    {"category": "Session Structure & Pacing", "score": <0-10>, "maxScore": 10},
+    {"category": "Safety Awareness", "score": <0-5>, "maxScore": 5}
+  ],
+  "strengths": [
+    "<specific strength with example from session>",
+    "<specific strength with example from session>",
+    "<specific strength with example from session>"
+  ],
+  "gaps": [
+    "<specific missed opportunity or area for improvement>",
+    "<specific missed opportunity or area for improvement>",
+    "<specific missed opportunity or area for improvement>"
+  ],
+  "safetyFlags": [
+    "<any safety concerns that were missed or mishandled, or empty array if none>"
+  ],
+  "suggestedActions": [
+    "<specific intervention they should have used at a particular moment>",
+    "<specific question or reflection they could have offered>",
+    "<technique that would have helped at a specific point>"
+  ],
+  "nextSessionGoals": [
+    "<concrete goal for next session based on this one>",
+    "<concrete goal for next session based on this one>",
+    "<concrete goal for next session based on this one>"
+  ],
+  "summary": "<2-3 sentence overall summary of the therapist's performance, noting key achievements and primary growth areas>"
+}
+
+## Evaluation Criteria for Couples Therapy:
+
+1. **Neutrality & Alliance Balance**: Did they avoid taking sides? Did each partner feel heard? Did they show balanced attention and empathy to both?
+
+2. **Accurate Reflection of Each Partner**: Did they accurately reflect each partner's feelings, needs, and perspective? Did they help partners feel understood?
+
+3. **Cycle Identification & Naming**: Did they identify the negative interaction pattern? Did they help the couple see the cycle vs. blaming each other?
+
+4. **De-escalation Skills**: When things heated up, did they slow it down effectively? Did they call timeouts when needed? Did they soften startups?
+
+5. **Repair Facilitation**: Did they create opportunities for repair? Did they help partners own impact, express needs, and make requests?
+
+6. **Emotional Attunement**: Did they track and name emotions accurately? Did they help access softer, underlying feelings?
+
+7. **Session Structure & Pacing**: Did they manage the session well? Use structured techniques appropriately? Know when to intervene vs. let things unfold?
+
+8. **Safety Awareness**: Were there any concerning dynamics (contempt, power imbalance, potential DV indicators) that needed attention?
+
+Be specific - reference actual moments from the session. Note what worked AND what could improve.`;
+  };
+
+  const buildStandardEvaluationPrompt = (conversationText: string, diagnosis: string, userAnswer: string, wasCorrect: boolean) => {
     let settingContext = '';
     if (caseSetup?.setting) {
       const settingLabel = SETTING_LABELS[caseSetup.setting];
       settingContext = `\n\n## Clinical Setting Context
-This session took place in a **${settingLabel}** setting. Please consider the constraints and expectations of this setting when evaluating:`;
-      
-      switch (caseSetup.setting) {
-        case 'telehealth':
-          settingContext += `
-- Physical examination was limited to visual observation
-- Vital signs may not have been directly obtainable
-- The clinician had to rely more heavily on patient self-report
-- Consider whether they appropriately acknowledged these limitations
-- Evaluate if they made appropriate recommendations for in-person follow-up when needed`;
-          break;
-        case 'emergency':
-          settingContext += `
-- Time pressure and urgency were factors
-- Focus should be on identifying emergent conditions
-- Triage and stabilization take priority
-- Red flags and safety concerns are especially critical`;
-          break;
-        case 'home':
-          settingContext += `
-- Limited equipment and resources available
-- Environmental assessment was possible
-- Consider how well they utilized the home environment context
-- Safety planning in the home context should be evaluated`;
-          break;
-        case 'labor_delivery':
-          settingContext += `
-- Focus on maternal and fetal wellbeing
-- Time-sensitive nature of labor progression
-- Consider support and advocacy aspects
-- Birth preferences and patient autonomy are important`;
-          break;
-        default:
-          settingContext += `
-- Standard clinical resources were available
-- Full examination capabilities were present`;
-      }
+This session took place in a **${settingLabel}** setting.`;
     }
 
     let difficultyContext = '';
     if (caseSetup?.difficulty) {
       difficultyContext = `\n\n## Difficulty Level: ${DIFFICULTY_LABELS[caseSetup.difficulty]}`;
-      switch (caseSetup.difficulty) {
-        case 'beginner':
-          difficultyContext += `
-The case was designed with straightforward, classic presentation. Evaluation should focus on fundamental skills.`;
-          break;
-        case 'intermediate':
-          difficultyContext += `
-The case included comorbidities and/or ambiguous symptoms. Acknowledge the complexity when evaluating.`;
-          break;
-        case 'advanced':
-          difficultyContext += `
-The case featured a poor historian, conflicting information, or red herrings. Give credit for navigating these challenges.`;
-          break;
-      }
     }
 
     let timePressureContext = '';
     if (caseSetup?.timePressureEnabled && caseSetup.maxTurns && turnsUsed !== undefined) {
       timePressureContext = `\n\n## Time Pressure
-The session had a ${caseSetup.maxTurns}-turn limit. The clinician used ${turnsUsed} turns. Consider efficiency in your evaluation.`;
+The session had a ${caseSetup.maxTurns}-turn limit. The clinician used ${turnsUsed} turns.`;
     }
 
-    const evaluationPrompt = `You are an expert ${professionConfig.name} educator evaluating a training session.
+    return `You are an expert ${professionConfig.name} educator evaluating a training session.
 
 ## Session Information
 - Profession: ${professionConfig.name}
@@ -223,56 +298,10 @@ You MUST respond in EXACTLY this JSON format (no other text, just valid JSON):
     "<specific question or action they should have taken 2>",
     "<specific question or action they should have taken 3>"
   ],
-  "summary": "<2-3 sentence overall summary of performance, acknowledging the specific setting/difficulty context>"
+  "summary": "<2-3 sentence overall summary of performance>"
 }
 
-Evaluation criteria:
-1. **Information Gathering**: Did they ask appropriate questions? Did they explore relevant symptoms, history, and context?
-2. **Clinical Reasoning**: Did their questions show logical progression? Did they narrow down possibilities appropriately?
-3. **Communication Skills**: Were they empathetic, clear, and professional? Did they build rapport?
-4. **Safety Awareness**: Did they identify and address any red flags or safety concerns?
-5. **Professional Approach**: Did they use appropriate assessment tools? Was their approach systematic?
-
-Be specific in your feedback - reference actual things they said or didn't say.
-${caseSetup?.setting === 'telehealth' ? 'Acknowledge telehealth limitations in your feedback.' : ''}
-For safety flags, only include genuine safety concerns that were missed (leave empty array if none).`;
-
-    try {
-      const response = await fetch(`${apiConfig.apiUrl}/chat/completions`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${apiConfig.apiKey}`
-        },
-        body: JSON.stringify({
-          model: apiConfig.modelName,
-          messages: [{ role: 'user', content: evaluationPrompt }],
-          temperature: 0.3
-        })
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to generate evaluation');
-      }
-
-      const data = await response.json();
-      const content = data.choices[0].message.content;
-      
-      let jsonContent = content;
-      
-      const jsonMatch = content.match(/```(?:json)?\s*([\s\S]*?)```/);
-      if (jsonMatch) {
-        jsonContent = jsonMatch[1];
-      }
-      
-      const evaluationData: EvaluationData = JSON.parse(jsonContent.trim());
-      setEvaluation(evaluationData);
-    } catch (err) {
-      console.error('Evaluation error:', err);
-      setError('Unable to generate evaluation. Please try again.');
-    } finally {
-      setIsLoading(false);
-    }
+Be specific in your feedback - reference actual things they said or didn't say.`;
   };
 
   const getScoreColor = (score: number, maxScore: number) => {
@@ -302,7 +331,7 @@ For safety flags, only include genuine safety concerns that were missed (leave e
           {isLoading ? (
             <div className="evaluation-loading">
               <div className="loading-spinner"></div>
-              <p>Analyzing your performance...</p>
+              <p>Analyzing your {isCouplesTherapy ? 'couples therapy session' : 'performance'}...</p>
             </div>
           ) : error ? (
             <div className="evaluation-error">
@@ -339,14 +368,24 @@ For safety flags, only include genuine safety concerns that were missed (leave e
                 </div>
               )}
 
-              {/* Result Banner */}
-              <div className={`evaluation-result ${wasCorrect ? 'correct' : 'incorrect'}`}>
-                <div className="result-icon">{wasCorrect ? '✅' : '❌'}</div>
-                <div className="result-text">
-                  <strong>{wasCorrect ? 'Correct!' : 'Incorrect'}</strong>
-                  <span>The answer was: {diagnosis}</span>
+              {/* Result Banner - different for couples therapy */}
+              {isCouplesTherapy ? (
+                <div className="evaluation-result couples">
+                  <div className="result-icon">💑</div>
+                  <div className="result-text">
+                    <strong>Session Complete</strong>
+                    <span>Couple's negative cycle: {diagnosis}</span>
+                  </div>
                 </div>
-              </div>
+              ) : (
+                <div className={`evaluation-result ${wasCorrect ? 'correct' : 'incorrect'}`}>
+                  <div className="result-icon">{wasCorrect ? '✅' : '❌'}</div>
+                  <div className="result-text">
+                    <strong>{wasCorrect ? 'Correct!' : 'Incorrect'}</strong>
+                    <span>The answer was: {diagnosis}</span>
+                  </div>
+                </div>
+              )}
 
               {/* Overall Score */}
               <div className="evaluation-score-section">
@@ -432,10 +471,22 @@ For safety flags, only include genuine safety concerns that were missed (leave e
               {/* Suggested Actions */}
               {evaluation.suggestedActions.length > 0 && (
                 <div className="evaluation-section suggestions">
-                  <h4>💡 Suggested Questions/Actions</h4>
+                  <h4>💡 {isCouplesTherapy ? 'Missed Opportunities' : 'Suggested Questions/Actions'}</h4>
                   <ul>
                     {evaluation.suggestedActions.map((action, idx) => (
                       <li key={idx}><ReactMarkdown>{action}</ReactMarkdown></li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              {/* Next Session Goals - Couples Therapy Only */}
+              {isCouplesTherapy && evaluation.nextSessionGoals && evaluation.nextSessionGoals.length > 0 && (
+                <div className="evaluation-section next-session">
+                  <h4>🎯 Goals for Next Session</h4>
+                  <ul>
+                    {evaluation.nextSessionGoals.map((goal, idx) => (
+                      <li key={idx}>{goal}</li>
                     ))}
                   </ul>
                 </div>
@@ -453,10 +504,10 @@ For safety flags, only include genuine safety concerns that were missed (leave e
 
         <div className="evaluation-footer">
           <button onClick={onClose} className="btn-secondary">
-            Review Conversation
+            Review Session
           </button>
           <button onClick={onNewSession} className="btn-primary">
-            🔄 New {professionConfig.patientLabel}
+            🔄 New {isCouplesTherapy ? 'Couple' : professionConfig.patientLabel}
           </button>
         </div>
       </div>

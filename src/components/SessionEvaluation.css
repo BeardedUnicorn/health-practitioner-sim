@@ -397,3 +397,28 @@
 .setup-info-value.difficulty-advanced {
   color: var(--error);
 }
+
+/* Couples therapy result banner */
+.evaluation-result.couples {
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.15) 0%, rgba(168, 132, 241, 0.15) 100%);
+  border: 1px solid rgba(132, 132, 241, 0.3);
+}
+
+.evaluation-result.couples .result-icon {
+  font-size: 2.5rem;
+}
+
+/* Next session goals section */
+.evaluation-section.next-session {
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.1) 0%, rgba(139, 92, 246, 0.1) 100%);
+  border-color: rgba(99, 102, 241, 0.3);
+}
+
+.evaluation-section.next-session h4 {
+  color: var(--accent-primary-hover);
+}
+
+.evaluation-section.next-session li {
+  color: var(--text-primary);
+  font-weight: 500;
+}

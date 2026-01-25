@@ -257,7 +257,7 @@ function App() {
       );
 
       let initialGreeting: string;
-      
+
       switch (profession) {
         case 'psychologist':
         case 'therapist':
@@ -268,6 +268,14 @@ function App() {
           break;
         case 'doula':
           initialGreeting = "I'm so glad you're here...";
+          break;
+        case 'couplesTherapist':
+          // Parse partner names from setup content if possible
+          const partnerAMatch = setupContent.match(/PARTNER_A_NAME:\s*(\w+)/i);
+          const partnerBMatch = setupContent.match(/PARTNER_B_NAME:\s*(\w+)/i);
+          const partnerAName = partnerAMatch ? partnerAMatch[1] : 'Partner A';
+          const partnerBName = partnerBMatch ? partnerBMatch[1] : 'Partner B';
+          initialGreeting = `[Partner A - ${partnerAName}]: *sits down, looking tense* Thanks for seeing us.\n\n[Partner B - ${partnerBName}]: *nods, sitting slightly apart* Yeah... we've been meaning to do this for a while.`;
           break;
         default:
           initialGreeting = "Hello, I'm not feeling well. I think I need help...";

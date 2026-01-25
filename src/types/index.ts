@@ -1,4 +1,4 @@
-export type Profession = 'nurse' | 'psychiatrist' | 'psychologist' | 'therapist' | 'doula' | 'pregnancyPartner';
+export type Profession = 'nurse' | 'psychiatrist' | 'psychologist' | 'therapist' | 'doula' | 'pregnancyPartner' | 'couplesTherapist';
 
 export type Difficulty = 'beginner' | 'intermediate' | 'advanced';
 
@@ -19,11 +19,35 @@ export interface CaseSetup {
   createdAt: number;
 }
 
+// Couples therapy specific types
+export interface CoupleProfile {
+  partnerA: {
+    name: string;
+    age: number;
+    description: string;
+    attachmentStyle: string;
+    typicalRole: string; // e.g., "pursuer", "withdrawer"
+  };
+  partnerB: {
+    name: string;
+    age: number;
+    description: string;
+    attachmentStyle: string;
+    typicalRole: string;
+  };
+  relationshipDuration: string;
+  presentingIssue: string;
+  negativeCycle: string;
+  escalationTriggers: string[];
+  repairOpportunities: string[];
+}
+
 export interface PatientSession {
   diagnosis: string;
   conversationHistory: Message[];
   caseSetup?: CaseSetup;
   turnsUsed?: number;
+  coupleProfile?: CoupleProfile; // For couples therapy
 }
 
 export interface ToolkitItem {
@@ -50,6 +74,12 @@ export interface ProfessionConfig {
   userEmoji: string;
   patientLabel: string;
   patientEmoji: string;
+  // Optional secondary patient for couples therapy
+  partnerALabel?: string;
+  partnerAEmoji?: string;
+  partnerBLabel?: string;
+  partnerBEmoji?: string;
+  isCouplesTherapy?: boolean;
   diagnosisHint: string;
   diagnosisPattern: RegExp;
   toolkit: ToolkitSection[];

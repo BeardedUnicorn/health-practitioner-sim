@@ -50,7 +50,8 @@ export function ChatContainer({
   const shouldAutoScrollRef = useRef(true);
   const lastScrollTopRef = useRef(0);
 
-  // Check if scrolled to bottom (within threshold)
+  const isCouplesTherapy = professionConfig.isCouplesTherapy;
+
   const isNearBottom = useCallback(() => {
     const container = messagesContainerRef.current;
     if (!container) return true;
@@ -58,14 +59,12 @@ export function ChatContainer({
     return container.scrollHeight - container.scrollTop - container.clientHeight < threshold;
   }, []);
 
-  // Scroll to bottom smoothly
   const scrollToBottom = useCallback((behavior: ScrollBehavior = 'smooth') => {
     if (shouldAutoScrollRef.current) {
       messagesEndRef.current?.scrollIntoView({ behavior });
     }
   }, []);
 
-  // Handle user scroll
   const handleScroll = useCallback(() => {
     const container = messagesContainerRef.current;
     if (!container) return;
@@ -74,35 +73,29 @@ export function ChatContainer({
     const isScrollingUp = currentScrollTop < lastScrollTopRef.current;
     lastScrollTopRef.current = currentScrollTop;
 
-    // If user scrolls up during streaming, disable auto-scroll
     if (isScrollingUp && isStreaming) {
       shouldAutoScrollRef.current = false;
     }
 
-    // If user scrolls to bottom, re-enable auto-scroll
     if (isNearBottom()) {
       shouldAutoScrollRef.current = true;
     }
   }, [isStreaming, isNearBottom]);
 
-  // When streaming starts, check if we should auto-scroll
   useEffect(() => {
     if (isStreaming) {
       shouldAutoScrollRef.current = isNearBottom();
     }
   }, [isStreaming, isNearBottom]);
 
-  // Auto-scroll during streaming
   useEffect(() => {
     if (isStreaming && streamingContent) {
       scrollToBottom();
     }
   }, [streamingContent, isStreaming, scrollToBottom]);
 
-  // Scroll when new messages are added (non-streaming)
   useEffect(() => {
     if (!isStreaming && !isLoading) {
-      // Small delay to let React render the new message
       requestAnimationFrame(() => {
         if (isNearBottom()) {
           scrollToBottom();
@@ -111,7 +104,6 @@ export function ChatContainer({
     }
   }, [session.conversationHistory.length, isStreaming, isLoading, scrollToBottom, isNearBottom]);
 
-  // Reset auto-scroll when user sends a message
   useEffect(() => {
     if (isLoading && !isStreaming) {
       shouldAutoScrollRef.current = true;
@@ -132,6 +124,13 @@ export function ChatContainer({
 
   const isInputDisabled = (isLoading && !isStreaming) || !!feedback || disabled;
 
+  // Get placeholder text based on profession type
+  const getPlaceholder = () => {
+    if (disabled) return 'Submit your session summary...';
+    if (isCouplesTherapy) return 'Speak to the couple...';
+    return `Ask the ${professionConfig.patientLabel.toLowerCase()} a question...`;
+  };
+
   return (
     <div className="chat-container">
       <div 
@@ -149,23 +148,34 @@ export function ChatContainer({
               userEmoji={professionConfig.userEmoji}
               patientLabel={professionConfig.patientLabel}
               patientEmoji={professionConfig.patientEmoji}
+              isCouplesTherapy={isCouplesTherapy}
+              partnerALabel={professionConfig.partnerALabel}
+              partnerAEmoji={professionConfig.partnerAEmoji}
+              partnerBLabel={professionConfig.partnerBLabel}
+              partnerBEmoji={professionConfig.partnerBEmoji}
             />
           ))}
         
-        {/* Show typing indicator while waiting for first token */}
         {isLoading && !isStreaming && (
           <TypingIndicator
             patientLabel={professionConfig.patientLabel}
             patientEmoji={professionConfig.patientEmoji}
+            isCouplesTherapy={isCouplesTherapy}
+            partnerAEmoji={professionConfig.partnerAEmoji}
+            partnerBEmoji={professionConfig.partnerBEmoji}
           />
         )}
         
-        {/* Show streaming message */}
         {isStreaming && (
           <StreamingMessage
             content={streamingContent}
             patientLabel={professionConfig.patientLabel}
             patientEmoji={professionConfig.patientEmoji}
+            isCouplesTherapy={isCouplesTherapy}
+            partnerALabel={professionConfig.partnerALabel}
+            partnerAEmoji={professionConfig.partnerAEmoji}
+            partnerBLabel={professionConfig.partnerBLabel}
+            partnerBEmoji={professionConfig.partnerBEmoji}
           />
         )}
         
@@ -176,18 +186,17 @@ export function ChatContainer({
         <div className={`feedback ${feedback.correct ? 'correct' : 'incorrect'}`}>
           {feedback.message}
           <button onClick={onNewSession} className="btn-primary" style={{ marginLeft: '1rem' }}>
-            New {professionConfig.patientLabel}
+            New {isCouplesTherapy ? 'Couple' : professionConfig.patientLabel}
           </button>
         </div>
       )}
 
       {disabled && !feedback && (
         <div className="feedback warning">
-          ⏱️ Time's up! Submit your diagnosis now.
+          ⏱️ Time's up! Submit your session summary now.
         </div>
       )}
 
-      {/* Inline Coach Suggestions */}
       {!feedback && !disabled && (
         <InlineCoach
           profession={profession}
@@ -220,10 +229,7 @@ export function ChatContainer({
           value={currentMessage}
           onChange={(e) => onMessageChange(e.target.value)}
           onKeyPress={handleKeyPress}
-          placeholder={disabled 
-            ? 'Submit your diagnosis...' 
-            : `Ask the ${professionConfig.patientLabel.toLowerCase()} a question...`
-          }
+          placeholder={getPlaceholder()}
           disabled={isInputDisabled && !disabled}
         />
         {isStreaming ? (
