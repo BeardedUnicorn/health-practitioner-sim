@@ -4,7 +4,6 @@ import { Profession, PatientSession, ApiConfig, Message, ProgressData, CaseSetup
 import { professionConfigs } from './config/professionConfig';
 import { ProfessionSelect } from './components/ProfessionSelect';
 import { SettingsModal } from './components/SettingsModal';
-import { ErrorBanner, AppError } from './components/ErrorBanner';
 import { SessionStart } from './components/SessionStart';
 import { ChatContainer } from './components/ChatContainer';
 import { Toolkit } from './components/Toolkit';
@@ -19,31 +18,15 @@ import { loadProgress, getProfessionPreferences } from './utils/progressStorage'
 type AppState = 'profession-select' | 'ready' | 'case-setup' | 'loading-session' | 'session' | 'progress';
 
 function App() {
-  // App state
   const [appState, setAppState] = useState<AppState>('profession-select');
   const [profession, setProfession] = useState<Profession | null>(null);
-  const [professionConfig, setProfessionConfig] = useState(profession ? professionConfigs[profession] : null);
   const [showSettings, setShowSettings] = useState(false);
-  const [showEvaluation, setShowEvaluation] = useState(false);
-  const [progress, setProgress] = useState<ProgressData>(loadProgress());
-
-  // API config
-  const [apiConfig, setApiConfig] = useState<ApiConfig>(() => {
-    const saved = localStorage.getItem('apiConfig');
-    if (saved) {
-      try {
-        return JSON.parse(saved);
-      } catch {
-        // Ignore parse errors and fall back to defaults
-      }
-    }
-    return {
-      apiUrl: 'http://localhost:1234/v1',
-      apiKey: '',
-      modelName: 'qwen/qwen3-4b-2507'
-    };
+  const [apiConfig, setApiConfig] = useState<ApiConfig>({
+    apiUrl: 'http://localhost:1234/v1',
+    apiKey: '',
+    modelName: 'qwen/qwen3-4b-2507'
   });
-
+  
   const [session, setSession] = useState<PatientSession | null>(null);
   const [currentMessage, setCurrentMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -54,31 +37,33 @@ function App() {
   const [inlineCoachEnabled, setInlineCoachEnabled] = useState(false);
   const [performingAssessment, setPerformingAssessment] = useState(false);
   const [coachWidth, setCoachWidth] = useState(350);
-  const [appError, setAppError] = useState<AppError | null>(null);
-
+  
   // Streaming state
   const [isStreaming, setIsStreaming] = useState(false);
   const [streamingContent, setStreamingContent] = useState('');
-
-  // Refs for AbortControllers
-  const abortControllerRef = useRef<AbortController | null>(null);
   const streamAbortRef = useRef<AbortController | null>(null);
+  
+  // Case setup state
+  const [pendingCaseSetup, setPendingCaseSetup] = useState<CaseSetup | null>(null);
+  
+  // Evaluation state
+  const [showEvaluation, setShowEvaluation] = useState(false);
+  const [userFinalAnswer, setUserFinalAnswer] = useState('');
+  
+  // Progress state
+  const [progress, setProgress] = useState<ProgressData>({ sessions: [], lastUpdated: 0 });
 
-  // Save API config to localStorage when it changes
+  // Abort controller for canceling requests
+  const abortControllerRef = useRef<AbortController | null>(null);
+
+  const professionConfig = profession ? professionConfigs[profession] : null;
+
+  // Load progress on mount
   useEffect(() => {
-    localStorage.setItem('apiConfig', JSON.stringify(apiConfig));
-  }, [apiConfig]);
+    setProgress(loadProgress());
+  }, []);
 
-  // Update profession config when profession changes
-  useEffect(() => {
-    if (profession) {
-      setProfessionConfig(professionConfigs[profession]);
-    } else {
-      setProfessionConfig(null);
-    }
-  }, [profession]);
-
-  // Cleanup on unmount
+  // Cleanup abort controllers on unmount
   useEffect(() => {
     return () => {
       if (abortControllerRef.current) {
@@ -94,13 +79,6 @@ function App() {
     setProgress(loadProgress());
   };
 
-  const showError = useCallback((title: string, message: string, details?: string) => {
-    console.error(`[${title}] ${message}`, details);
-    setAppError({ title, message, details });
-  }, []);
-
-  const dismissError = useCallback(() => setAppError(null), []);
-
   // Abort current stream
   const abortStream = useCallback(() => {
     if (streamAbortRef.current) {
@@ -109,11 +87,12 @@ function App() {
     }
   }, []);
 
-  // Handle stop streaming and commit partial content
+  // Stop streaming handler
   const handleStopStreaming = useCallback(() => {
-    // If we were streaming and have content, add it as the assistant message
-    if (isStreaming && streamingContent && session) {
-      setSession((prev) => {
+    if (isStreaming && streamingContent.trim()) {
+      abortStream();
+      // Commit partial content to history
+      setSession(prev => {
         if (!prev) return null;
         return {
           ...prev,
@@ -129,11 +108,15 @@ function App() {
     setIsStreaming(false);
     setStreamingContent('');
     setIsLoading(false);
-  }, [isStreaming, streamingContent, session, abortStream]);
+  }, [isStreaming, streamingContent, abortStream]);
 
   const handleProfessionSelect = (selectedProfession: Profession) => {
     setProfession(selectedProfession);
     setAppState('ready');
+  };
+
+  const handleChangeProfession = () => {
+    abortStream();
     setSession(null);
     setFeedback(null);
     setShowAnswer(false);
@@ -141,480 +124,12 @@ function App() {
     setShowCoach(false);
     setInlineCoachEnabled(false);
     setShowEvaluation(false);
-    setCurrentMessage('');
-  };
-
-  const handleBackToProfessionSelect = () => {
+    setUserFinalAnswer('');
+    setPendingCaseSetup(null);
     setProfession(null);
+    setIsStreaming(false);
+    setStreamingContent('');
     setAppState('profession-select');
-    setSession(null);
-    setFeedback(null);
-    setShowAnswer(false);
-    setShowToolkit(false);
-    setShowCoach(false);
-    setInlineCoachEnabled(false);
-    setShowEvaluation(false);
-    setCurrentMessage('');
-  };
-
-  const handleOpenCaseSetup = () => {
-    // Reset any prior session state before starting
-    setSession(null);
-    setFeedback(null);
-    setShowAnswer(false);
-    setShowToolkit(false);
-    setShowCoach(false);
-    setInlineCoachEnabled(false);
-    setShowEvaluation(false);
-    setCurrentMessage('');
-
-    setAppState('case-setup');
-  };
-
-  const handleCloseCaseSetup = () => {
-    setAppState('ready');
-  };
-
-  // Start session with chosen setup (from modal)
-  const handleStartWithSetup = (setup: CaseSetup) => {
-    dismissError();
-    setAppState('loading-session');
-    startNewSessionWithSetup(setup);
-  };
-
-  // Start a random session (from modal)
-  const handleStartRandom = () => {
-    if (!professionConfig) return;
-
-    // Generate random setup using preferences if available
-    const prefs = profession ? getProfessionPreferences(profession) : null;
-    const difficulty = prefs?.preferredDifficulty ?? professionConfig.defaultDifficulty;
-    const setting = prefs?.preferredSetting ?? professionConfig.defaultSetting;
-
-    const setup: CaseSetup = {
-      difficulty,
-      setting
-    };
-
-    handleStartWithSetup(setup);
-  };
-
-  const startNewSessionWithSetup = async (setup: CaseSetup) => {
-    if (!profession || !professionConfig) return;
-
-    setIsLoading(true);
-    setFeedback(null);
-    setShowAnswer(false);
-    setShowToolkit(false);
-    setShowCoach(false);
-    setInlineCoachEnabled(false);
-    setShowEvaluation(false);
-    setCurrentMessage('');
-
-    // Abort any existing request
-    if (abortControllerRef.current) {
-      abortControllerRef.current.abort();
-    }
-
-    const abortController = new AbortController();
-    abortControllerRef.current = abortController;
-
-    try {
-      // Prepare initial system prompt with setup context
-      const systemPrompt = professionConfig.systemPrompt(setup);
-
-      // Call the model to generate a new case (answer + initial patient message)
-      const response = await fetch(`${apiConfig.apiUrl}/chat/completions`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(apiConfig.apiKey ? { Authorization: `Bearer ${apiConfig.apiKey}` } : {})
-        },
-        body: JSON.stringify({
-          model: apiConfig.modelName,
-          messages: [
-            { role: 'system', content: systemPrompt }
-          ],
-          temperature: 0.8
-        }),
-        signal: abortController.signal
-      });
-
-      if (!response.ok) {
-        const text = await response.text();
-        throw new Error(`API request failed (${response.status}): ${text}`);
-      }
-
-      const data = await response.json();
-      const content = data?.choices?.[0]?.message?.content ?? '';
-
-      // Expect format:
-      // ANSWER: ...
-      // PATIENT: ...
-      const answerMatch = content.match(/ANSWER:\s*([\s\S]*?)\nPATIENT:/i);
-      const patientMatch = content.match(/PATIENT:\s*([\s\S]*)/i);
-
-      const diagnosis = answerMatch ? answerMatch[1].trim() : '';
-      const initialPatientMessage = patientMatch ? patientMatch[1].trim() : content.trim();
-
-      const initialConversation: Message[] = [
-        { role: 'system', content: systemPrompt },
-        { role: 'assistant', content: initialPatientMessage }
-      ];
-
-      const newSession: PatientSession = {
-        profession,
-        caseSetup: setup,
-        diagnosis,
-        conversationHistory: initialConversation,
-        turnsUsed: 0
-      };
-
-      setSession(newSession);
-      setAppState('session');
-    } catch (error: unknown) {
-      if (error instanceof Error && error.name === 'AbortError') {
-        console.log('Request was cancelled');
-        return;
-      }
-
-      const message = error instanceof Error ? error.message : String(error);
-      showError('Error starting session', message);
-
-      abortControllerRef.current = null;
-
-      setAppState('ready');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleCoachSuggestionClick = async (suggestion: string) => {
-    if (!session || !professionConfig) return;
-
-    // Add suggestion as user message and stream response
-    setCurrentMessage(suggestion);
-    await sendMessageWithText(suggestion);
-  };
-
-  const sendMessage = async () => {
-    dismissError();
-    if (!currentMessage.trim() || !session || !professionConfig) return;
-    const messageText = currentMessage.trim();
-    setCurrentMessage('');
-    await sendMessageWithText(messageText);
-  };
-
-  const sendMessageWithText = async (messageText: string) => {
-    if (!session || !professionConfig) return;
-
-    // Stop streaming if currently streaming, and commit partial content first
-    if (isStreaming) {
-      handleStopStreaming();
-    }
-
-    setIsLoading(true);
-    setIsStreaming(true);
-    setStreamingContent('');
-
-    // Abort any existing stream
-    abortStream();
-
-    const abortController = new AbortController();
-    streamAbortRef.current = abortController;
-
-    try {
-      // Add user message to conversation
-      const updatedHistory: Message[] = [
-        ...session.conversationHistory,
-        { role: 'user', content: messageText }
-      ];
-
-      setSession((prev) => prev ? { ...prev, conversationHistory: updatedHistory } : prev);
-
-      // Stream assistant response
-      const response = await fetch(`${apiConfig.apiUrl}/chat/completions`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(apiConfig.apiKey ? { Authorization: `Bearer ${apiConfig.apiKey}` } : {})
-        },
-        body: JSON.stringify({
-          model: apiConfig.modelName,
-          messages: updatedHistory,
-          temperature: 0.7,
-          stream: true
-        }),
-        signal: abortController.signal
-      });
-
-      if (!response.ok) {
-        const text = await response.text();
-        throw new Error(`API request failed (${response.status}): ${text}`);
-      }
-
-      const reader = response.body?.getReader();
-      if (!reader) {
-        throw new Error('No response body reader available');
-      }
-
-      const decoder = new TextDecoder('utf-8');
-      let fullContent = '';
-
-      let done = false;
-      while (!done) {
-        const result = await reader.read();
-        done = result.done;
-        if (done) break;
-
-        const chunk = decoder.decode(result.value, { stream: true });
-        const lines = chunk.split('\n');
-
-        for (const line of lines) {
-          const trimmed = line.trim();
-          if (!trimmed.startsWith('data:')) continue;
-
-          const data = trimmed.slice(5).trim();
-          if (data === '[DONE]') {
-            break;
-          }
-          try {
-            const parsed = JSON.parse(data);
-            const content = parsed.choices?.[0]?.delta?.content;
-            if (content) {
-              fullContent += content;
-              setStreamingContent(fullContent);
-            }
-          } catch {
-            // Skip malformed JSON chunks
-          }
-        }
-      }
-
-      // Streaming complete - add full message to conversation
-      setSession((prev) => {
-        if (!prev) return null;
-
-        const nextTurns = prev.turnsUsed + 1;
-
-        return {
-          ...prev,
-          conversationHistory: [
-            ...prev.conversationHistory,
-            { role: 'assistant', content: fullContent }
-          ],
-          turnsUsed: nextTurns
-        };
-      });
-
-    } catch (error: unknown) {
-      if (error instanceof Error && error.name === 'AbortError') {
-        // Streaming cancelled, already handled by handleStopStreaming
-        console.log('Streaming cancelled');
-        return;
-      }
-
-      const message = error instanceof Error ? error.message : String(error);
-      showError('Error sending message', message);
-    } finally {
-      setIsStreaming(false);
-      setStreamingContent('');
-      setIsLoading(false);
-      streamAbortRef.current = null;
-    }
-  };
-
-  const handlePerformAssessment = async (assessmentType: string, assessmentName: string) => {
-    dismissError();
-    if (!session || !professionConfig) return;
-
-    setPerformingAssessment(true);
-    setIsLoading(true);
-
-    // Stop any current streaming
-    if (isStreaming) {
-      handleStopStreaming();
-    }
-
-    try {
-      await performAssessment(assessmentType, assessmentName);
-    } finally {
-      setIsLoading(false);
-      setPerformingAssessment(false);
-    }
-  };
-
-  const performAssessment = async (assessmentType: string, assessmentName: string) => {
-    dismissError();
-    if (!session || !professionConfig) return;
-
-    setIsStreaming(true);
-    setStreamingContent('');
-
-    // Abort any existing stream
-    abortStream();
-
-    const abortController = new AbortController();
-    streamAbortRef.current = abortController;
-
-    try {
-      // Build assessment prompt
-      const prompt = professionConfig.assessmentPrompt(assessmentType, assessmentName, session.conversationHistory);
-
-      const messages: Message[] = [
-        { role: 'system', content: prompt }
-      ];
-
-      // Stream assistant response
-      const response = await fetch(`${apiConfig.apiUrl}/chat/completions`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(apiConfig.apiKey ? { Authorization: `Bearer ${apiConfig.apiKey}` } : {})
-        },
-        body: JSON.stringify({
-          model: apiConfig.modelName,
-          messages,
-          temperature: 0.5,
-          stream: true
-        }),
-        signal: abortController.signal
-      });
-
-      if (!response.ok) {
-        const text = await response.text();
-        throw new Error(`API request failed (${response.status}): ${text}`);
-      }
-
-      const reader = response.body?.getReader();
-      if (!reader) {
-        throw new Error('No response body reader available');
-      }
-
-      const decoder = new TextDecoder('utf-8');
-      let fullContent = '';
-
-      let done = false;
-      while (!done) {
-        const result = await reader.read();
-        done = result.done;
-        if (done) break;
-
-        const chunk = decoder.decode(result.value, { stream: true });
-        const lines = chunk.split('\n');
-
-        for (const line of lines) {
-          const trimmed = line.trim();
-          if (!trimmed.startsWith('data:')) continue;
-
-          const data = trimmed.slice(5).trim();
-          if (data === '[DONE]') {
-            break;
-          }
-          try {
-            const parsed = JSON.parse(data);
-            const content = parsed.choices?.[0]?.delta?.content;
-            if (content) {
-              fullContent += content;
-              setStreamingContent(fullContent);
-            }
-          } catch {
-            // Skip malformed JSON chunks
-          }
-        }
-      }
-
-      // Add assessment result as assistant message
-      setSession((prev) => {
-        if (!prev) return null;
-        return {
-          ...prev,
-          conversationHistory: [
-            ...prev.conversationHistory,
-            { role: 'assistant', content: `🩺 ${assessmentName}\n\n${fullContent}` }
-          ]
-        };
-      });
-
-    } catch (error: unknown) {
-      if (error instanceof Error && error.name === 'AbortError') {
-        console.log('Assessment streaming cancelled');
-        return;
-      }
-      const message = error instanceof Error ? error.message : String(error);
-      showError('Error performing assessment', message);
-    } finally {
-      setIsStreaming(false);
-      setStreamingContent('');
-      setIsLoading(false);
-      setPerformingAssessment(false);
-      streamAbortRef.current = null;
-    }
-  };
-
-  const handleSubmitDiagnosis = async (answer: string) => {
-    if (!session || !professionConfig) return;
-
-    // Stop any streaming
-    if (isStreaming) {
-      handleStopStreaming();
-    }
-
-    setIsLoading(true);
-
-    try {
-      const evaluationPrompt = professionConfig.evaluationPrompt(session.diagnosis, answer, session.conversationHistory);
-
-      const response = await fetch(`${apiConfig.apiUrl}/chat/completions`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(apiConfig.apiKey ? { Authorization: `Bearer ${apiConfig.apiKey}` } : {})
-        },
-        body: JSON.stringify({
-          model: apiConfig.modelName,
-          messages: [
-            { role: 'system', content: evaluationPrompt }
-          ],
-          temperature: 0.2
-        })
-      });
-
-      if (!response.ok) {
-        const text = await response.text();
-        throw new Error(`API request failed (${response.status}): ${text}`);
-      }
-
-      const data = await response.json();
-      const content = data?.choices?.[0]?.message?.content ?? '';
-
-      // Parse evaluation response. Expected format:
-      // RESULT: CORRECT/INCORRECT
-      // FEEDBACK: ...
-      const resultMatch = content.match(/RESULT:\s*(CORRECT|INCORRECT)/i);
-      const feedbackMatch = content.match(/FEEDBACK:\s*([\s\S]*)/i);
-
-      const correct = resultMatch ? resultMatch[1].toUpperCase() === 'CORRECT' : false;
-      const message = feedbackMatch ? feedbackMatch[1].trim() : content.trim();
-
-      setFeedback({ correct, message });
-      setShowEvaluation(true);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleCloseEvaluation = () => {
-    setShowEvaluation(false);
-  };
-
-  const handleCancelLoading = () => {
-    if (abortControllerRef.current) {
-      abortControllerRef.current.abort();
-      abortControllerRef.current = null;
-    }
-    setAppState('ready');
-    setIsLoading(false);
   };
 
   const handleShowProgress = () => {
@@ -623,19 +138,493 @@ function App() {
 
   const handleBackFromProgress = () => {
     if (profession) {
-      setAppState('ready');
+      if (session) {
+        setAppState('session');
+      } else {
+        setAppState('ready');
+      }
     } else {
       setAppState('profession-select');
     }
   };
 
-  const handleChangeProfession = () => {
-    // Stop streaming before leaving session
+  const handleCancelLoading = () => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+      abortControllerRef.current = null;
+    }
+    setPendingCaseSetup(null);
+    setAppState('ready');
+  };
+
+  const handleOpenCaseSetup = () => {
+    setAppState('case-setup');
+  };
+
+  const handleCloseCaseSetup = () => {
+    setAppState('ready');
+  };
+
+  const handleStartWithSetup = (setup: CaseSetup) => {
+    setPendingCaseSetup(setup);
+    setAppState('loading-session');
+    startNewSessionWithSetup(setup);
+  };
+
+  const handleStartRandom = () => {
+    if (!professionConfig || !profession) return;
+    
+    const prefs = getProfessionPreferences(profession);
+    
+    const setup: CaseSetup = {
+      profession,
+      category: professionConfig.categories[
+        Math.floor(Math.random() * professionConfig.categories.length)
+      ],
+      difficulty: prefs.lastDifficulty || 'beginner',
+      setting: prefs.lastSetting || professionConfig.defaultSetting,
+      timePressureEnabled: prefs.lastTimePressure || false,
+      maxTurns: prefs.lastMaxTurns || null,
+      createdAt: Date.now()
+    };
+    
+    setPendingCaseSetup(setup);
+    setAppState('loading-session');
+    startNewSessionWithSetup(setup);
+  };
+
+  const startNewSessionWithSetup = async (setup: CaseSetup) => {
+    if (!professionConfig) return;
+    
+    abortControllerRef.current = new AbortController();
+    
+    setFeedback(null);
+    setShowAnswer(false);
+    setShowCoach(false);
+    setShowEvaluation(false);
+    setUserFinalAnswer('');
+    setIsStreaming(false);
+    setStreamingContent('');
+    
+    try {
+      const setupPrompt = professionConfig.getSetupPrompt(
+        setup.category,
+        setup.difficulty,
+        setup.setting
+      );
+
+      const setupResponse = await fetch(`${apiConfig.apiUrl}/chat/completions`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${apiConfig.apiKey}`
+        },
+        body: JSON.stringify({
+          model: apiConfig.modelName,
+          messages: [{ role: 'user', content: setupPrompt }],
+          temperature: 0.9
+        }),
+        signal: abortControllerRef.current.signal
+      });
+
+      if (!setupResponse.ok) {
+        throw new Error('Failed to connect to API');
+      }
+
+      const setupData = await setupResponse.json();
+      const setupContent = setupData.choices[0].message.content;
+      
+      let diagnosis = 'Unknown Condition';
+      
+      const diagnosisPatterns = [
+        /DIAGNOSIS:\s*(.+?)(?:\n|$)/i,
+        /UNDERLYING_NEED:\s*(.+?)(?:\n|$)/i,
+        /SITUATION:\s*(.+?)(?:\n|$)/i
+      ];
+      
+      for (const pattern of diagnosisPatterns) {
+        const match = setupContent.match(pattern);
+        if (match && match[1].trim()) {
+          diagnosis = match[1].trim();
+          break;
+        }
+      }
+      
+      const systemPrompt = professionConfig.getSystemPrompt(
+        setupContent,
+        setup.difficulty,
+        setup.setting
+      );
+
+      let initialGreeting: string;
+
+      switch (profession) {
+        case 'psychologist':
+        case 'therapist':
+          initialGreeting = "Hi... thanks for seeing me. I'm not really sure where to start...";
+          break;
+        case 'pregnancyPartner':
+          initialGreeting = "*sighs* Hey...";
+          break;
+        case 'doula':
+          initialGreeting = "I'm so glad you're here...";
+          break;
+        case 'couplesTherapist':
+          // Parse partner names from setup content if possible
+          const partnerAMatch = setupContent.match(/PARTNER_A_NAME:\s*(\w+)/i);
+          const partnerBMatch = setupContent.match(/PARTNER_B_NAME:\s*(\w+)/i);
+          const partnerAName = partnerAMatch ? partnerAMatch[1] : 'Partner A';
+          const partnerBName = partnerBMatch ? partnerBMatch[1] : 'Partner B';
+          initialGreeting = `[Partner A - ${partnerAName}]: *sits down, looking tense* Thanks for seeing us.\n\n[Partner B - ${partnerBName}]: *nods, sitting slightly apart* Yeah... we've been meaning to do this for a while.`;
+          break;
+        default:
+          initialGreeting = "Hello, I'm not feeling well. I think I need help...";
+      }
+
+      const initialHistory: Message[] = [
+        { role: 'system', content: systemPrompt },
+        { role: 'assistant', content: initialGreeting }
+      ];
+
+      setSession({
+        diagnosis: diagnosis,
+        conversationHistory: initialHistory,
+        caseSetup: setup,
+        turnsUsed: 0
+      });
+      
+      abortControllerRef.current = null;
+      
+      setAppState('session');
+    } catch (error) {
+      if (error instanceof Error && error.name === 'AbortError') {
+        console.log('Request was cancelled');
+        return;
+      }
+      
+      const message = error instanceof Error ? error.message : String(error);
+      alert(`Error starting session: ${message}`);
+      
+      abortControllerRef.current = null;
+      
+      setPendingCaseSetup(null);
+      setAppState('ready');
+    }
+  };
+
+  const handleCoachSuggestionClick = (text: string) => {
+    setCurrentMessage(text);
+  };
+
+  const sendMessage = async () => {
+    if (!currentMessage.trim() || !session || !professionConfig) return;
+    
+    // If currently streaming, stop and commit partial content first
+    if (isStreaming) {
+      handleStopStreaming();
+      return; // Let user send on next click
+    }
+    
+    if (isLoading) return;
+
+    const userMessage = currentMessage.trim();
+    setCurrentMessage('');
+
+    const newTurnsUsed = (session.turnsUsed || 0) + 1;
+
+    const updatedHistoryWithUserMessage: Message[] = [
+      ...session.conversationHistory,
+      { role: 'user', content: userMessage }
+    ];
+
+    setSession({
+      ...session,
+      conversationHistory: updatedHistoryWithUserMessage,
+      turnsUsed: newTurnsUsed
+    });
+
+    const diagnosisMatch = userMessage.match(professionConfig.diagnosisPattern);
+
+    if (diagnosisMatch) {
+      const userDiagnosis = diagnosisMatch[1].trim();
+      const isCorrect = userDiagnosis.toLowerCase().includes(session.diagnosis.toLowerCase()) ||
+                        session.diagnosis.toLowerCase().includes(userDiagnosis.toLowerCase());
+      
+      setUserFinalAnswer(userDiagnosis);
+      
+      setFeedback({
+        correct: isCorrect,
+        message: isCorrect 
+          ? `✅ Correct! The ${professionConfig.patientLabel.toLowerCase()}'s condition is ${session.diagnosis}.`
+          : `❌ Incorrect. The ${professionConfig.patientLabel.toLowerCase()}'s condition is ${session.diagnosis}, not ${userDiagnosis}.`
+      });
+      
+      setTimeout(() => {
+        setShowEvaluation(true);
+      }, 500);
+      
+      return;
+    }
+
+    if (session.caseSetup?.timePressureEnabled && 
+        session.caseSetup.maxTurns && 
+        newTurnsUsed >= session.caseSetup.maxTurns) {
+      setSession(prev => prev ? { ...prev, turnsUsed: newTurnsUsed } : null);
+      return;
+    }
+
+    // Start streaming response
+    const controller = new AbortController();
+    streamAbortRef.current = controller;
+    setIsLoading(true);
+    setIsStreaming(false);
+    setStreamingContent('');
+
+    try {
+      const response = await fetch(`${apiConfig.apiUrl}/chat/completions`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${apiConfig.apiKey}`
+        },
+        body: JSON.stringify({
+          model: apiConfig.modelName,
+          messages: updatedHistoryWithUserMessage.map(msg => ({
+            role: msg.role,
+            content: msg.content
+          })),
+          temperature: 0.7,
+          stream: true
+        }),
+        signal: controller.signal
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to get response from API');
+      }
+
+      const reader = response.body!.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+      let fullContent = '';
+
+      // Got first response, switch from loading to streaming
+      setIsLoading(false);
+      setIsStreaming(true);
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop() || '';
+
+        for (const line of lines) {
+          const trimmed = line.trim();
+          if (trimmed.startsWith('data: ')) {
+            const data = trimmed.slice(6);
+            if (data === '[DONE]') {
+              break;
+            }
+            try {
+              const parsed = JSON.parse(data);
+              const content = parsed.choices?.[0]?.delta?.content;
+              if (content) {
+                fullContent += content;
+                setStreamingContent(fullContent);
+              }
+            } catch {
+              // Skip malformed JSON chunks
+            }
+          }
+        }
+      }
+
+      // Streaming complete - add full message to history
+      if (fullContent) {
+        setSession(prevSession => {
+          if (!prevSession) return null;
+          return {
+            ...prevSession,
+            conversationHistory: [
+              ...prevSession.conversationHistory,
+              { role: 'assistant', content: fullContent }
+            ]
+          };
+        });
+      }
+
+    } catch (error) {
+      if (error instanceof Error && error.name === 'AbortError') {
+        // Streaming was cancelled - partial content already handled by handleStopStreaming
+        console.log('Streaming cancelled');
+        return;
+      }
+      
+      const message = error instanceof Error ? error.message : String(error);
+      alert(`Error sending message: ${message}`);
+    } finally {
+      setIsStreaming(false);
+      setStreamingContent('');
+      setIsLoading(false);
+      streamAbortRef.current = null;
+    }
+  };
+
+  const handleForceSubmit = () => {
+    if (!session || !professionConfig) return;
+    
+    // Stop any streaming
+    if (isStreaming) {
+      handleStopStreaming();
+    }
+    
+    setUserFinalAnswer('Time ran out - no diagnosis submitted');
+    setFeedback({
+      correct: false,
+      message: `⏱️ Time ran out! The ${professionConfig.patientLabel.toLowerCase()}'s condition was ${session.diagnosis}.`
+    });
+    
+    setTimeout(() => {
+      setShowEvaluation(true);
+    }, 500);
+  };
+
+  const performAssessment = async (assessmentType: string, assessmentName: string) => {
+    if (!session || !professionConfig || performingAssessment) return;
+
+    // Stop any current streaming
     if (isStreaming) {
       handleStopStreaming();
     }
 
-    // Reset session state
+    setPerformingAssessment(true);
+
+    const newTurnsUsed = (session.turnsUsed || 0) + 1;
+
+    const assessmentAction: Message = { role: 'user', content: `[Performed ${assessmentName}]` };
+    
+    setSession(prevSession => {
+      if (!prevSession) return null;
+      return {
+        ...prevSession,
+        conversationHistory: [
+          ...prevSession.conversationHistory,
+          assessmentAction
+        ],
+        turnsUsed: newTurnsUsed
+      };
+    });
+
+    if (session.caseSetup?.timePressureEnabled && 
+        session.caseSetup.maxTurns && 
+        newTurnsUsed >= session.caseSetup.maxTurns) {
+      setPerformingAssessment(false);
+      return;
+    }
+
+    const assessmentPrompt = professionConfig.getAssessmentPrompt(
+      session.diagnosis, 
+      assessmentName, 
+      assessmentType
+    );
+
+    // Stream assessment response
+    const controller = new AbortController();
+    streamAbortRef.current = controller;
+    setIsLoading(true);
+
+    try {
+      const response = await fetch(`${apiConfig.apiUrl}/chat/completions`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${apiConfig.apiKey}`
+        },
+        body: JSON.stringify({
+          model: apiConfig.modelName,
+          messages: [
+            { role: 'system', content: session.conversationHistory[0].content },
+            { role: 'user', content: assessmentPrompt }
+          ],
+          temperature: 0.5,
+          stream: true
+        }),
+        signal: controller.signal
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to get assessment results');
+      }
+
+      const reader = response.body!.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+      let fullContent = '';
+
+      setIsLoading(false);
+      setIsStreaming(true);
+      setStreamingContent(`📋 ${assessmentName}: `);
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop() || '';
+
+        for (const line of lines) {
+          const trimmed = line.trim();
+          if (trimmed.startsWith('data: ')) {
+            const data = trimmed.slice(6);
+            if (data === '[DONE]') break;
+            try {
+              const parsed = JSON.parse(data);
+              const content = parsed.choices?.[0]?.delta?.content;
+              if (content) {
+                fullContent += content;
+                setStreamingContent(`📋 ${assessmentName}: ${fullContent}`);
+              }
+            } catch {
+              // Skip malformed JSON
+            }
+          }
+        }
+      }
+
+      const assessmentMessage = `📋 ${assessmentName}: ${fullContent}`;
+      
+      setSession(prevSession => {
+        if (!prevSession) return null;
+        return {
+          ...prevSession,
+          conversationHistory: [
+            ...prevSession.conversationHistory,
+            { role: 'assistant', content: assessmentMessage }
+          ]
+        };
+      });
+
+    } catch (error) {
+      if (error instanceof Error && error.name === 'AbortError') {
+        console.log('Assessment streaming cancelled');
+        return;
+      }
+      const message = error instanceof Error ? error.message : String(error);
+      alert(`Error performing assessment: ${message}`);
+    } finally {
+      setIsStreaming(false);
+      setStreamingContent('');
+      setIsLoading(false);
+      setPerformingAssessment(false);
+      streamAbortRef.current = null;
+    }
+  };
+
+  const handleEndSession = () => {
+    abortStream();
     setSession(null);
     setFeedback(null);
     setShowAnswer(false);
@@ -643,28 +632,26 @@ function App() {
     setShowCoach(false);
     setInlineCoachEnabled(false);
     setShowEvaluation(false);
-    setCurrentMessage('');
-
-    setProfession(null);
-    setAppState('profession-select');
+    setUserFinalAnswer('');
+    setPendingCaseSetup(null);
+    setIsStreaming(false);
+    setStreamingContent('');
+    setAppState('ready');
   };
 
-  const userFinalAnswer = session?.diagnosis || '';
+  const handleCloseEvaluation = () => {
+    setShowEvaluation(false);
+  };
 
-  const canSubmitDiagnosis = Boolean(
-    session &&
-    professionConfig &&
-    session.turnsUsed >= (professionConfig?.minTurnsBeforeDiagnosis ?? 0) &&
-    session.caseSetup?.maxTurns &&
+  const turnsExhausted = !!(
+    session?.caseSetup?.timePressureEnabled && 
+    session?.caseSetup?.maxTurns && 
     (session?.turnsUsed || 0) >= session.caseSetup.maxTurns &&
     !feedback
   );
 
   return (
     <div className="app">
-      {appError && (
-        <ErrorBanner error={appError} onDismiss={dismissError} />
-      )}
       {/* Settings Modal */}
       {showSettings && (
         <SettingsModal
@@ -716,8 +703,8 @@ function App() {
 
       {/* Profession Selection Screen */}
       {appState === 'profession-select' && (
-        <ProfessionSelect
-          onSelect={handleProfessionSelect}
+        <ProfessionSelect 
+          onSelect={handleProfessionSelect} 
           onOpenSettings={() => setShowSettings(true)}
           onOpenProgress={handleShowProgress}
           sessionCount={progress.sessions.length}
@@ -736,7 +723,7 @@ function App() {
               <button onClick={() => setShowSettings(true)} className="btn-secondary">
                 ⚙️ Settings
               </button>
-              <button onClick={handleBackToProfessionSelect} className="btn-secondary">
+              <button onClick={handleChangeProfession} className="btn-secondary">
                 🔄 Change Profession
               </button>
             </div>
@@ -760,8 +747,8 @@ function App() {
               </button>
             </div>
           </div>
-          <LoadingSession
-            professionConfig={professionConfig}
+          <LoadingSession 
+            professionConfig={professionConfig} 
             onCancel={handleCancelLoading}
           />
         </>
@@ -773,88 +760,149 @@ function App() {
           <div className="header">
             <h1>{professionConfig.emoji} {professionConfig.title}</h1>
             <div className="header-buttons">
-              <button onClick={handleChangeProfession} className="btn-secondary">
-                🔄 Change
-              </button>
-              <button
-                onClick={() => setShowCoach(!showCoach)}
-                className={showCoach ? "btn-secondary active" : "btn-secondary"}
+              <button 
+                onClick={handleOpenCaseSetup} 
+                className="btn-secondary" 
+                disabled={isLoading || isStreaming}
               >
-                🧠 Coach
+                🔄 New {professionConfig.patientLabel}
               </button>
-              <button
-                onClick={() => setInlineCoachEnabled(!inlineCoachEnabled)}
-                className={inlineCoachEnabled ? "btn-secondary active" : "btn-secondary"}
-              >
-                💡 Inline Coach
-              </button>
-              <button
-                onClick={() => setShowToolkit(!showToolkit)}
+              <button 
+                onClick={() => setShowToolkit(!showToolkit)} 
                 className={showToolkit ? "btn-secondary active" : "btn-secondary"}
               >
                 🩺 Assessment Toolkit
               </button>
-              <button
-                onClick={() => setShowAnswer(!showAnswer)}
+              <button 
+                onClick={() => setShowAnswer(!showAnswer)} 
                 className={showAnswer ? "btn-secondary active" : "btn-secondary"}
               >
                 {showAnswer ? '🙈 Hide Answer' : '👁️ Reveal Answer'}
               </button>
               {feedback && (
-                <button
-                  onClick={() => setShowEvaluation(true)}
+                <button 
+                  onClick={() => setShowEvaluation(true)} 
                   className="btn-secondary"
                 >
-                  📋 Evaluation
+                  📊 View Evaluation
                 </button>
               )}
+              <button onClick={() => setShowSettings(true)} className="btn-secondary">
+                ⚙️ Settings
+              </button>
+              <button onClick={handleEndSession} className="btn-secondary">
+                ✖️ End Session
+              </button>
             </div>
           </div>
 
-          <div className="session-layout">
-            <div className="session-main">
-              <ChatContainer
-                conversationHistory={session.conversationHistory}
-                currentMessage={currentMessage}
-                setCurrentMessage={setCurrentMessage}
-                onSend={sendMessage}
-                onStopStreaming={handleStopStreaming}
-                isLoading={isLoading}
-                isStreaming={isStreaming}
-                streamingContent={streamingContent}
-                showAnswer={showAnswer}
-                diagnosis={session.diagnosis}
-                feedback={feedback}
-                onSubmitDiagnosis={handleSubmitDiagnosis}
-                canSubmitDiagnosis={canSubmitDiagnosis}
-              />
-              <div className="session-footer">
+          {showAnswer && (
+            <div className="answer-banner">
+              <strong>⚠️ Answer:</strong> {session.diagnosis}
+            </div>
+          )}
+
+          {/* Case Setup Info Banner */}
+          {session.caseSetup && (
+            <div className="case-setup-banner">
+              <span className="setup-tag category">
+                📋 {session.caseSetup.category.split('(')[0].trim()}
+              </span>
+              <span className={`setup-tag difficulty-${session.caseSetup.difficulty}`}>
+                {session.caseSetup.difficulty === 'beginner' && '🟢'}
+                {session.caseSetup.difficulty === 'intermediate' && '🟡'}
+                {session.caseSetup.difficulty === 'advanced' && '🔴'}
+                {' '}{session.caseSetup.difficulty.charAt(0).toUpperCase() + session.caseSetup.difficulty.slice(1)}
+              </span>
+              <span className="setup-tag setting">
+                🏥 {session.caseSetup.setting.replace('_', ' ')}
+              </span>
+            </div>
+          )}
+
+          <div className="session-container">
+            {showToolkit && (
+              <div className="side-panel toolkit-panel">
+                <div className="side-panel-header">
+                  <h3>🩺 Assessment Tools</h3>
+                  <button onClick={() => setShowToolkit(false)} className="panel-close">×</button>
+                </div>
+                <div className="side-panel-content">
+                  <Toolkit
+                    sections={professionConfig.toolkit}
+                    isLoading={performingAssessment || isStreaming}
+                    onAssessment={performAssessment}
+                  />
+                </div>
+              </div>
+            )}
+
+            <ChatContainer
+              session={session}
+              profession={profession!}
+              professionConfig={professionConfig}
+              currentMessage={currentMessage}
+              isLoading={isLoading}
+              isStreaming={isStreaming}
+              streamingContent={streamingContent}
+              feedback={feedback}
+              showCoach={showCoach}
+              disabled={turnsExhausted}
+              inlineCoachEnabled={inlineCoachEnabled}
+              apiConfig={apiConfig}
+              onMessageChange={setCurrentMessage}
+              onSend={sendMessage}
+              onNewSession={handleOpenCaseSetup}
+              onToggleCoach={() => setShowCoach(!showCoach)}
+              onToggleInlineCoach={() => setInlineCoachEnabled(!inlineCoachEnabled)}
+              onStopStreaming={handleStopStreaming}
+            />
+
+            {/* Turn Counter for Time Pressure Mode */}
+            {session.caseSetup?.timePressureEnabled && session.caseSetup.maxTurns && !feedback && (
+              <div className="turn-counter-container">
                 <TurnCounter
-                  turnsUsed={session.turnsUsed}
-                  maxTurns={session.caseSetup?.maxTurns ?? 0}
-                  minTurnsBeforeDiagnosis={professionConfig.minTurnsBeforeDiagnosis ?? 0}
+                  turnsUsed={session.turnsUsed || 0}
+                  maxTurns={session.caseSetup.maxTurns}
+                  onForceSubmit={handleForceSubmit}
                 />
               </div>
-            </div>
-
-            {showToolkit && (
-              <Toolkit
-                professionConfig={professionConfig}
-                onPerformAssessment={handlePerformAssessment}
-                disabled={performingAssessment || isLoading}
-              />
             )}
 
             {showCoach && (
-              <Coach
-                professionConfig={professionConfig}
-                session={session}
-                apiConfig={apiConfig}
-                onSuggestionClick={handleCoachSuggestionClick}
-                inlineCoachEnabled={inlineCoachEnabled}
-                width={coachWidth}
-                onResize={setCoachWidth}
-              />
+              <>
+                <div 
+                  className="resize-handle"
+                  onMouseDown={(e) => {
+                    e.preventDefault();
+                    const startX = e.clientX;
+                    const startWidth = coachWidth;
+
+                    const handleMouseMove = (e: MouseEvent) => {
+                      const delta = startX - e.clientX;
+                      const newWidth = Math.max(300, Math.min(600, startWidth + delta));
+                      setCoachWidth(newWidth);
+                    };
+
+                    const handleMouseUp = () => {
+                      document.removeEventListener('mousemove', handleMouseMove);
+                      document.removeEventListener('mouseup', handleMouseUp);
+                    };
+
+                    document.addEventListener('mousemove', handleMouseMove);
+                    document.addEventListener('mouseup', handleMouseUp);
+                  }}
+                />
+                <div className="side-panel coach-panel" style={{ width: `${coachWidth}px` }}>
+                  <Coach
+                    profession={profession!}
+                    conversationHistory={session.conversationHistory}
+                    apiConfig={apiConfig}
+                    onClose={() => setShowCoach(false)}
+                    onSuggestionClick={handleCoachSuggestionClick}
+                  />
+                </div>
+              </>
             )}
           </div>
         </>

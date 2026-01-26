@@ -926,7 +926,7 @@ Remember: You are THIS specific pregnant person with THIS specific need.`,
   getAssessmentPrompt: (diagnosis: string, assessmentName: string, assessmentType: string) => 
     `The pregnant person's underlying need is: ${diagnosis}
 
-Provide specific guidance for ${assessmentName} in this ${assessmentType} assessment situation.
+Provide specific guidance for ${assessmentName} in this situation.
 
 Keep response 2-4 sentences, specific and actionable.
 

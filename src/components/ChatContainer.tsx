@@ -193,7 +193,7 @@ export function ChatContainer({
 
       {disabled && !feedback && (
         <div className="feedback warning">
-          ⏱️ {"Time's up! Submit your session summary now."}
+          ⏱️ Time's up! Submit your session summary now.
         </div>
       )}
 
