@@ -16,28 +16,28 @@ const STEP_INFO: Record<LoadingStep, { label: string; emoji: string }> = {
   starting: { label: 'Starting session', emoji: '✨' }
 };
 
+const LOADING_TIPS = [
+  'Take your time to gather information before making a diagnosis.',
+  'Build rapport by showing empathy and active listening.',
+  'Use the Assessment Toolkit to perform physical examinations.',
+  'Ask open-ended questions to encourage detailed responses.',
+  'Watch for red flags and safety concerns throughout the conversation.',
+  'The Coach button (🎓) provides real-time guidance during sessions.',
+  'Consider differential diagnoses before settling on your answer.',
+  'Pay attention to both verbal and non-verbal cues in responses.',
+  'Document your thought process as you go along.',
+  "Remember: it's better to ask more questions than to rush to conclusions."
+];
+
 export function LoadingSession({ professionConfig, onCancel }: LoadingSessionProps) {
   const [currentStep, setCurrentStep] = useState<LoadingStep>('generating');
   const [currentTipIndex, setCurrentTipIndex] = useState(0);
   const [progress, setProgress] = useState(0);
 
-  const tips = [
-    `Take your time to gather information before making a diagnosis.`,
-    `Build rapport by showing empathy and active listening.`,
-    `Use the Assessment Toolkit to perform physical examinations.`,
-    `Ask open-ended questions to encourage detailed responses.`,
-    `Watch for red flags and safety concerns throughout the conversation.`,
-    `The Coach button (🎓) provides real-time guidance during sessions.`,
-    `Consider differential diagnoses before settling on your answer.`,
-    `Pay attention to both verbal and non-verbal cues in responses.`,
-    `Document your thought process as you go along.`,
-    `Remember: it's better to ask more questions than to rush to conclusions.`
-  ];
-
   // Rotate tips every 3 seconds
   useEffect(() => {
     const tipInterval = setInterval(() => {
-      setCurrentTipIndex((prev) => (prev + 1) % tips.length);
+      setCurrentTipIndex((prev) => (prev + 1) % LOADING_TIPS.length);
     }, 3000);
 
     return () => clearInterval(tipInterval);
@@ -117,7 +117,7 @@ export function LoadingSession({ professionConfig, onCancel }: LoadingSessionPro
           <div className="tip-content">
             <div className="tip-label">Tip</div>
             <div className="tip-text" key={currentTipIndex}>
-              {tips[currentTipIndex]}
+              {LOADING_TIPS[currentTipIndex]}
             </div>
           </div>
         </div>

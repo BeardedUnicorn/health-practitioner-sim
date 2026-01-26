@@ -21,7 +21,7 @@ interface ParsedPartnerMessage {
   content: string;
 }
 
-function parseCouplesMessage(content: string): ParsedPartnerMessage[] | null {
+function parseCouplesMessage(content: string, partnerALabel?: string, partnerBLabel?: string): ParsedPartnerMessage[] | null {
   // Match patterns like [Partner A - Name]: or [Partner B - Name]:
   const partnerPattern = /\[Partner\s*(A|B)\s*(?:-\s*([^\]]+))?\]:\s*/gi;
   const matches = [...content.matchAll(partnerPattern)];
@@ -35,7 +35,8 @@ function parseCouplesMessage(content: string): ParsedPartnerMessage[] | null {
   for (let i = 0; i < matches.length; i++) {
     const match = matches[i];
     const partner = match[1].toUpperCase() as 'A' | 'B';
-    const name = match[2]?.trim() || `Partner ${partner}`;
+    const defaultName = partner === 'A' ? (partnerALabel || 'Partner A') : (partnerBLabel || 'Partner B');
+    const name = match[2]?.trim() || defaultName;
     const startIndex = match.index! + match[0].length;
     const endIndex = matches[i + 1]?.index || content.length;
     const messageContent = content.slice(startIndex, endIndex).trim();
@@ -64,7 +65,7 @@ export function Message({
   
   // For couples therapy assistant messages, try to parse partner dialogue
   if (!isUser && isCouplesTherapy) {
-    const parsedMessages = parseCouplesMessage(message.content);
+    const parsedMessages = parseCouplesMessage(message.content, partnerALabel, partnerBLabel);
     
     if (parsedMessages && parsedMessages.length > 0) {
       return (
@@ -126,7 +127,7 @@ export function StreamingMessage({
 }: StreamingMessageProps) {
   // For couples therapy, try to parse the streaming content
   if (isCouplesTherapy && content) {
-    const parsedMessages = parseCouplesMessage(content);
+    const parsedMessages = parseCouplesMessage(content, partnerALabel, partnerBLabel);
     
     if (parsedMessages && parsedMessages.length > 0) {
       return (

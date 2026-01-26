@@ -18,6 +18,18 @@ const SUGGESTION_TYPE_INFO: Record<SuggestionType, { emoji: string; label: strin
   followup: { emoji: '➡️', label: 'Follow-up', color: 'var(--accent-secondary)' }
 };
 
+type CoachApiSuggestion = Omit<CoachSuggestion, 'id'>;
+type CoachApiResponse = {
+  suggestions?: CoachApiSuggestion[];
+  summary?: string;
+  missingAreas?: string[];
+};
+
+type InlineCoachSuggestion = {
+  shortLabel?: string;
+  fullText?: string;
+};
+
 // Generate a stable fingerprint for conversation state
 // This lets us detect actual changes vs. reference changes
 function getConversationFingerprint(messages: Message[]): string {
@@ -160,11 +172,11 @@ DO NOT suggest specific diagnoses or treatments. Help the trainee gather informa
           content = jsonMatch[1];
         }
 
-        const parsed = JSON.parse(content.trim());
+        const parsed = JSON.parse(content.trim()) as CoachApiResponse;
 
         // Add IDs to suggestions
-        const suggestionsWithIds: CoachSuggestion[] = parsed.suggestions.map((s: any, idx: number) => ({
-          ...s,
+        const suggestionsWithIds: CoachSuggestion[] = (parsed.suggestions ?? []).map((suggestion, idx) => ({
+          ...suggestion,
           id: `suggestion-${Date.now()}-${idx}`
         }));
 
@@ -300,9 +312,9 @@ Focus on PROCESS not ANSWERS. DO NOT suggest specific diagnoses or treatments.`;
         const jsonMatch = content.match(/```(?:json)?\s*([\s\S]*?)```/);
         if (jsonMatch) content = jsonMatch[1];
 
-        const parsed = JSON.parse(content.trim());
-        const suggestionsWithIds: CoachSuggestion[] = parsed.suggestions.map((s: any, idx: number) => ({
-          ...s,
+        const parsed = JSON.parse(content.trim()) as CoachApiResponse;
+        const suggestionsWithIds: CoachSuggestion[] = (parsed.suggestions ?? []).map((suggestion, idx) => ({
+          ...suggestion,
           id: `suggestion-${Date.now()}-${idx}`
         }));
 
@@ -542,16 +554,17 @@ Focus on gathering information, NOT diagnosing. No other text.`;
         const arrayMatch = content.match(/\[[\s\S]*\]/);
         if (arrayMatch) content = arrayMatch[0];
 
-        const parsed = JSON.parse(content.trim());
+        const parsed = JSON.parse(content.trim()) as InlineCoachSuggestion[];
 
         if (thisRequestId !== requestIdRef.current) return;
 
-        const quickSuggestions: CoachSuggestion[] = parsed.slice(0, 3).map((s: any, idx: number) => ({
+        const suggestions = Array.isArray(parsed) ? parsed : [];
+        const quickSuggestions: CoachSuggestion[] = suggestions.slice(0, 3).map((suggestion, idx) => ({
           id: `quick-${Date.now()}-${idx}`,
-          text: s.fullText,
+          text: suggestion.fullText ?? '',
           type: 'question' as SuggestionType,
-          shortLabel: s.shortLabel,
-          fullText: s.fullText
+          shortLabel: suggestion.shortLabel ?? '',
+          fullText: suggestion.fullText ?? ''
         }));
 
         setSuggestions(quickSuggestions);
