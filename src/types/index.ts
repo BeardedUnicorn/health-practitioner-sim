@@ -157,3 +157,48 @@ export interface CaseSetupPreferences {
     lastMaxTurns?: number;
   };
 }
+
+// Shared LLM contracts
+export interface LlmChatMessage {
+  role: 'user' | 'assistant' | 'system';
+  content: string;
+}
+
+export interface LlmCompletionRequest {
+  model: string;
+  messages: LlmChatMessage[];
+  temperature?: number;
+  stream?: boolean;
+}
+
+export type LlmStreamEvent =
+  | { type: 'delta'; content: string }
+  | { type: 'done' };
+
+export interface CoachResponsePayload {
+  suggestions?: Omit<CoachSuggestion, 'id'>[];
+  summary?: string;
+  missingAreas?: string[];
+}
+
+export interface EvaluationResponsePayload {
+  overallScore: number;
+  scoreBreakdown: {
+    category: string;
+    score: number;
+    maxScore: number;
+  }[];
+  strengths: string[];
+  gaps: string[];
+  safetyFlags: string[];
+  suggestedActions: string[];
+  summary: string;
+  nextSessionGoals?: string[];
+}
+
+// Tauri IPC contracts
+export interface RuntimeInfo {
+  appVersion: string;
+  platform: string;
+  tauriVersion: string;
+}

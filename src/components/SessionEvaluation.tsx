@@ -1,7 +1,18 @@
-import { useState, useEffect } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import ReactMarkdown from 'react-markdown';
-import { ProfessionConfig, ApiConfig, Message, Profession, CaseSetup, Difficulty, ClinicalSetting } from '../types';
+import {
+  ProfessionConfig,
+  ApiConfig,
+  Message,
+  Profession,
+  CaseSetup,
+  Difficulty,
+  ClinicalSetting,
+  EvaluationResponsePayload,
+} from '../types';
 import { addSessionRecord } from '../utils/progressStorage';
+import { requestCompletionText } from '../shared/llm/client';
+import { parseJsonObject } from '../shared/llm/json-parser';
 import './SessionEvaluation.css';
 
 interface SessionEvaluationProps {
@@ -18,21 +29,7 @@ interface SessionEvaluationProps {
   onProgressSaved?: () => void;
 }
 
-interface EvaluationData {
-  overallScore: number;
-  scoreBreakdown: {
-    category: string;
-    score: number;
-    maxScore: number;
-  }[];
-  strengths: string[];
-  gaps: string[];
-  safetyFlags: string[];
-  suggestedActions: string[];
-  summary: string;
-  // Couples therapy specific
-  nextSessionGoals?: string[];
-}
+type EvaluationData = EvaluationResponsePayload;
 
 const SETTING_LABELS: Record<ClinicalSetting, string> = {
   clinic: 'Outpatient Clinic',
@@ -50,119 +47,12 @@ const DIFFICULTY_LABELS: Record<Difficulty, string> = {
   advanced: 'Advanced'
 };
 
-export function SessionEvaluation({
-  professionConfig,
-  apiConfig,
-  conversationHistory,
-  diagnosis,
-  userAnswer,
-  wasCorrect,
-  caseSetup,
-  turnsUsed,
-  onNewSession,
-  onClose,
-  onProgressSaved
-}: SessionEvaluationProps) {
-  const [evaluation, setEvaluation] = useState<EvaluationData | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [hasSaved, setHasSaved] = useState(false);
-
-  const isCouplesTherapy = professionConfig.isCouplesTherapy;
-
-  useEffect(() => {
-    generateEvaluation();
-  }, []);
-
-  useEffect(() => {
-    if (evaluation && !hasSaved) {
-      saveSessionProgress();
-    }
-  }, [evaluation, hasSaved]);
-
-  const saveSessionProgress = () => {
-    if (!evaluation) return;
-
-    addSessionRecord({
-      profession: professionConfig.id as Profession,
-      category: caseSetup?.category || 'Random',
-      difficulty: caseSetup?.difficulty,
-      setting: caseSetup?.setting,
-      timePressureEnabled: caseSetup?.timePressureEnabled,
-      maxTurns: caseSetup?.maxTurns,
-      turnsUsed,
-      diagnosis,
-      userAnswer,
-      correct: wasCorrect,
-      score: evaluation.overallScore,
-      summary: evaluation.summary,
-      strengths: evaluation.strengths,
-      gaps: evaluation.gaps,
-      safetyFlags: evaluation.safetyFlags
-    });
-
-    setHasSaved(true);
-    onProgressSaved?.();
-  };
-
-  const generateEvaluation = async () => {
-    setIsLoading(true);
-    setError(null);
-
-    const conversationText = conversationHistory
-      .filter(msg => msg.role !== 'system')
-      .map(msg => `${msg.role === 'user' ? professionConfig.userLabel : professionConfig.patientLabel}: ${msg.content}`)
-      .join('\n');
-
-    // Build evaluation prompt based on profession type
-    let evaluationPrompt: string;
-    
-    if (isCouplesTherapy) {
-      evaluationPrompt = buildCouplesTherapyEvaluationPrompt(conversationText, diagnosis, userAnswer);
-    } else {
-      evaluationPrompt = buildStandardEvaluationPrompt(conversationText, diagnosis, userAnswer, wasCorrect);
-    }
-
-    try {
-      const response = await fetch(`${apiConfig.apiUrl}/chat/completions`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${apiConfig.apiKey}`
-        },
-        body: JSON.stringify({
-          model: apiConfig.modelName,
-          messages: [{ role: 'user', content: evaluationPrompt }],
-          temperature: 0.3
-        })
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to generate evaluation');
-      }
-
-      const data = await response.json();
-      const content = data.choices[0].message.content;
-      
-      let jsonContent = content;
-      
-      const jsonMatch = content.match(/```(?:json)?\s*([\s\S]*?)```/);
-      if (jsonMatch) {
-        jsonContent = jsonMatch[1];
-      }
-      
-      const evaluationData: EvaluationData = JSON.parse(jsonContent.trim());
-      setEvaluation(evaluationData);
-    } catch (err) {
-      console.error('Evaluation error:', err);
-      setError('Unable to generate evaluation. Please try again.');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const buildCouplesTherapyEvaluationPrompt = (conversationText: string, negativeCycle: string, userSummary: string) => {
-    return `You are an expert couples therapy supervisor evaluating a training session.
+function buildCouplesTherapyEvaluationPrompt(
+  conversationText: string,
+  negativeCycle: string,
+  userSummary: string,
+): string {
+  return `You are an expert couples therapy supervisor evaluating a training session.
 
 ## Session Information
 - This was a couples therapy session with two partners
@@ -233,28 +123,36 @@ You MUST respond in EXACTLY this JSON format (no other text, just valid JSON):
 8. **Safety Awareness**: Were there any concerning dynamics (contempt, power imbalance, potential DV indicators) that needed attention?
 
 Be specific - reference actual moments from the session. Note what worked AND what could improve.`;
-  };
+}
 
-  const buildStandardEvaluationPrompt = (conversationText: string, diagnosis: string, userAnswer: string, wasCorrect: boolean) => {
-    let settingContext = '';
-    if (caseSetup?.setting) {
-      const settingLabel = SETTING_LABELS[caseSetup.setting];
-      settingContext = `\n\n## Clinical Setting Context
+function buildStandardEvaluationPrompt(
+  conversationText: string,
+  diagnosis: string,
+  userAnswer: string,
+  wasCorrect: boolean,
+  professionConfig: ProfessionConfig,
+  caseSetup?: CaseSetup,
+  turnsUsed?: number,
+): string {
+  let settingContext = '';
+  if (caseSetup?.setting) {
+    const settingLabel = SETTING_LABELS[caseSetup.setting];
+    settingContext = `\n\n## Clinical Setting Context
 This session took place in a **${settingLabel}** setting.`;
-    }
+  }
 
-    let difficultyContext = '';
-    if (caseSetup?.difficulty) {
-      difficultyContext = `\n\n## Difficulty Level: ${DIFFICULTY_LABELS[caseSetup.difficulty]}`;
-    }
+  let difficultyContext = '';
+  if (caseSetup?.difficulty) {
+    difficultyContext = `\n\n## Difficulty Level: ${DIFFICULTY_LABELS[caseSetup.difficulty]}`;
+  }
 
-    let timePressureContext = '';
-    if (caseSetup?.timePressureEnabled && caseSetup.maxTurns && turnsUsed !== undefined) {
-      timePressureContext = `\n\n## Time Pressure
+  let timePressureContext = '';
+  if (caseSetup?.timePressureEnabled && caseSetup.maxTurns && turnsUsed !== undefined) {
+    timePressureContext = `\n\n## Time Pressure
 The session had a ${caseSetup.maxTurns}-turn limit. The clinician used ${turnsUsed} turns.`;
-    }
+  }
 
-    return `You are an expert ${professionConfig.name} educator evaluating a training session.
+  return `You are an expert ${professionConfig.name} educator evaluating a training session.
 
 ## Session Information
 - Profession: ${professionConfig.name}
@@ -302,7 +200,105 @@ You MUST respond in EXACTLY this JSON format (no other text, just valid JSON):
 }
 
 Be specific in your feedback - reference actual things they said or didn't say.`;
-  };
+}
+
+export function SessionEvaluation({
+  professionConfig,
+  apiConfig,
+  conversationHistory,
+  diagnosis,
+  userAnswer,
+  wasCorrect,
+  caseSetup,
+  turnsUsed,
+  onNewSession,
+  onClose,
+  onProgressSaved
+}: SessionEvaluationProps) {
+  const [evaluation, setEvaluation] = useState<EvaluationData | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [hasSaved, setHasSaved] = useState(false);
+
+  const isCouplesTherapy = professionConfig.isCouplesTherapy;
+
+  const saveSessionProgress = useCallback(() => {
+    if (!evaluation) return;
+
+    addSessionRecord({
+      profession: professionConfig.id as Profession,
+      category: caseSetup?.category || 'Random',
+      difficulty: caseSetup?.difficulty,
+      setting: caseSetup?.setting,
+      timePressureEnabled: caseSetup?.timePressureEnabled,
+      maxTurns: caseSetup?.maxTurns,
+      turnsUsed,
+      diagnosis,
+      userAnswer,
+      correct: wasCorrect,
+      score: evaluation.overallScore,
+      summary: evaluation.summary,
+      strengths: evaluation.strengths,
+      gaps: evaluation.gaps,
+      safetyFlags: evaluation.safetyFlags
+    });
+
+    setHasSaved(true);
+    onProgressSaved?.();
+  }, [caseSetup?.category, caseSetup?.difficulty, caseSetup?.maxTurns, caseSetup?.setting, caseSetup?.timePressureEnabled, diagnosis, evaluation, onProgressSaved, professionConfig.id, turnsUsed, userAnswer, wasCorrect]);
+
+  const generateEvaluation = useCallback(async () => {
+    setIsLoading(true);
+    setError(null);
+
+    const conversationText = conversationHistory
+      .filter(msg => msg.role !== 'system')
+      .map(msg => `${msg.role === 'user' ? professionConfig.userLabel : professionConfig.patientLabel}: ${msg.content}`)
+      .join('\n');
+
+    // Build evaluation prompt based on profession type
+    let evaluationPrompt: string;
+    
+    if (isCouplesTherapy) {
+      evaluationPrompt = buildCouplesTherapyEvaluationPrompt(conversationText, diagnosis, userAnswer);
+    } else {
+      evaluationPrompt = buildStandardEvaluationPrompt(
+        conversationText,
+        diagnosis,
+        userAnswer,
+        wasCorrect,
+        professionConfig,
+        caseSetup,
+        turnsUsed,
+      );
+    }
+
+    try {
+      const content = await requestCompletionText(apiConfig, {
+        model: apiConfig.modelName,
+        messages: [{ role: 'user', content: evaluationPrompt }],
+        temperature: 0.3,
+      });
+
+      const evaluationData = parseJsonObject<EvaluationData>(content);
+      setEvaluation(evaluationData);
+    } catch (err) {
+      console.error('Evaluation error:', err);
+      setError('Unable to generate evaluation. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
+  }, [apiConfig, caseSetup, conversationHistory, diagnosis, isCouplesTherapy, professionConfig, turnsUsed, userAnswer, wasCorrect]);
+
+  useEffect(() => {
+    void generateEvaluation();
+  }, [generateEvaluation]);
+
+  useEffect(() => {
+    if (evaluation && !hasSaved) {
+      saveSessionProgress();
+    }
+  }, [evaluation, hasSaved, saveSessionProgress]);
 
   const getScoreColor = (score: number, maxScore: number) => {
     const percentage = (score / maxScore) * 100;
@@ -374,7 +370,7 @@ Be specific in your feedback - reference actual things they said or didn't say.`
                   <div className="result-icon">💑</div>
                   <div className="result-text">
                     <strong>Session Complete</strong>
-                    <span>Couple's negative cycle: {diagnosis}</span>
+                    <span>Couple&apos;s negative cycle: {diagnosis}</span>
                   </div>
                 </div>
               ) : (
