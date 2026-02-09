@@ -933,6 +933,39 @@ Keep response 2-4 sentences, specific and actionable.
 Provide the ${assessmentName} guidance now:`
 };
 
+// Couples therapy specific difficulty instructions
+const getCouplesTherapyDifficultyInstructions = (difficulty?: Difficulty): string => {
+  switch (difficulty) {
+    case 'beginner':
+      return `DIFFICULTY: BEGINNER
+- One partner is slightly more ready for change than typical
+- Conflict is present but not highly escalated
+- Partners can hear each other with moderate facilitation
+- Defenses are present but not rigid
+- The cycle is clear and identifiable
+- Partners show some capacity for softening when guided`;
+    case 'intermediate':
+      return `DIFFICULTY: INTERMEDIATE
+- Both partners are entrenched in their positions
+- Significant defensiveness and blame present
+- At least one partner floods easily under stress
+- History of failed repair attempts they reference
+- Cycle is more embedded and automatic
+- One partner may be more ambivalent about therapy`;
+    case 'advanced':
+      return `DIFFICULTY: ADVANCED
+- High contempt and/or chronic stonewalling present
+- One or both partners ambivalent about the relationship itself
+- Trauma history affecting attachment responses
+- Partners frequently trigger each other's core wounds
+- May attempt to triangulate therapist or seek validation
+- Deep-seated resentment from accumulated hurts
+- Very rigid defensive patterns`;
+    default:
+      return '';
+  }
+};
+
 export const couplesTherapistConfig: ProfessionConfig = {
   id: 'couplesTherapist',
   name: 'Couples Therapist',
@@ -945,7 +978,7 @@ export const couplesTherapistConfig: ProfessionConfig = {
   patientEmoji: '💑',
   partnerALabel: 'Partner A',
   partnerAEmoji: '🧑',
-  partnerBLabel: 'Partner B', 
+  partnerBLabel: 'Partner B',
   partnerBEmoji: '👩',
   isCouplesTherapy: true,
   diagnosisHint: '💡 Tip: When ready to summarize the session, type "My session summary is [your formulation of the cycle and progress]"',
@@ -1047,107 +1080,264 @@ export const couplesTherapistConfig: ProfessionConfig = {
 IMPORTANT: You MUST create a scenario from this category: ${category}
 Create a realistic couple with distinct personalities, a clear negative interaction cycle, and specific dynamics.
 
-${getDifficultyInstructions(difficulty)}
+${getCouplesTherapyDifficultyInstructions(difficulty)}
 ${getSettingInstructions(setting)}
 
 You must respond in EXACTLY this format (including the labels):
 NEGATIVE_CYCLE: [describe the couple's primary negative interaction cycle, e.g., "pursue-withdraw" or "attack-defend"]
 PARTNER_A_NAME: [first name]
 PARTNER_A_AGE: [age]
-PARTNER_A_PROFILE: [personality, communication style, attachment tendency, role in cycle (e.g., pursuer/withdrawer)]
-PARTNER_B_NAME: [first name]  
+PARTNER_A_ROLE: [pursuer/withdrawer/attacker/defender - their role in the cycle]
+PARTNER_A_ATTACHMENT: [anxious/avoidant/disorganized/secure-leaning]
+PARTNER_A_PROFILE: [personality, communication style, how they act when stressed, verbal patterns]
+PARTNER_A_CORE_FEAR: [their deepest fear in the relationship - abandonment, rejection, engulfment, inadequacy, etc.]
+PARTNER_B_NAME: [first name]
 PARTNER_B_AGE: [age]
-PARTNER_B_PROFILE: [personality, communication style, attachment tendency, role in cycle]
+PARTNER_B_ROLE: [pursuer/withdrawer/attacker/defender - their role in the cycle]
+PARTNER_B_ATTACHMENT: [anxious/avoidant/disorganized/secure-leaning]
+PARTNER_B_PROFILE: [personality, communication style, how they act when stressed, verbal patterns]
+PARTNER_B_CORE_FEAR: [their deepest fear in the relationship]
 RELATIONSHIP_DURATION: [how long together]
-PRESENTING_ISSUE: [what brought them to therapy - the surface complaint]
+PRESENTING_ISSUE: [what brought them to therapy - the surface complaint from each perspective]
 UNDERLYING_DYNAMICS: [deeper attachment wounds, fears, unmet needs driving the cycle]
 ESCALATION_TRIGGERS: [specific topics or behaviors that escalate conflict]
-REPAIR_OPPORTUNITIES: [moments where repair could happen, what each partner needs to repair]
-SESSION_GOAL: [realistic goal for this session]
-CURRENT_EMOTIONAL_STATE: [how each partner is feeling coming into session]
+RECENT_INCIDENT: [a specific recent fight or incident they may reference]
+REPAIR_HISTORY: [what repair attempts have looked like and why they've failed]
+SESSION_GOAL: [realistic goal for this session - should be modest]
+CURRENT_EMOTIONAL_STATE: [how each partner is feeling coming into session - may be different]
 
-Make the couple feel REAL:
-- Give them specific details and history
-- Each partner should have valid feelings and perspectives
-- Include specific examples of their cycle in action
-- Show both partners' contributions to the cycle (no villains)
-- Include what each partner is longing for underneath
+CRITICAL FOR REALISM:
+- The WITHDRAWER should have: shorter speech patterns, tendency to say "I don't know," difficulty accessing emotions verbally
+- The PURSUER should have: more words, tendency toward criticism or complaint when hurt, visible emotional expression
+- Include specific phrases each partner typically uses
+- Note what shuts each partner down
+- Both partners have valid perspectives - no villains
 
 Now generate a couple for ${category}:`,
 
-  getSystemPrompt: (setupContent: string, difficulty?: Difficulty, setting?: ClinicalSetting) => `You are simulating BOTH partners in a couples therapy session. You will roleplay as two distinct people with their own voices, perspectives, and emotional responses.
+  getSystemPrompt: (setupContent: string, difficulty?: Difficulty, setting?: ClinicalSetting) => `You are simulating BOTH partners in a couples therapy session. You roleplay as two distinct people with their own voices, defenses, and blind spots.
 
 THE COUPLE'S PROFILE:
 ${setupContent}
 
-${getDifficultyInstructions(difficulty)}
+${getCouplesTherapyDifficultyInstructions(difficulty)}
 ${getSettingInstructions(setting)}
 
-CRITICAL INSTRUCTIONS FOR SIMULATING THE COUPLE:
+═══════════════════════════════════════════════════════════════════
+CRITICAL: PACING & CONFLICT PERSISTENCE
+═══════════════════════════════════════════════════════════════════
 
-1. FORMAT: Always clearly indicate who is speaking using this format:
-   [Partner A - Name]: "Their words and *nonverbal actions*"
-   [Partner B - Name]: "Their response and *nonverbal actions*"
+PROGRESS MUST BE SLOW AND REQUIRE THERAPIST SKILL:
+- Do NOT reach breakthrough insights in a single response
+- Do NOT have partners spontaneously understand each other's perspectives
+- Do NOT propose solutions unless the therapist explicitly guides you there
+- Conflict should persist across multiple exchanges
+- Partners should misunderstand, talk past each other, and get stuck
+- Progress only happens when the therapist intervenes skillfully
 
-2. DISTINCT VOICES: Each partner must sound different:
-   - Different speech patterns, vocabulary, emotional expression
-   - One might be more verbal, one more withdrawn
-   - Show their different attachment styles in how they communicate
+REALISTIC SESSION DYNAMICS:
+- 70% of responses should maintain or escalate tension
+- 20% should show small openings (that may close again if not supported)
+- 10% should show genuine micro-progress (not full resolution)
+- A "breakthrough" requires 4-6 exchanges of skilled therapist work
+- Even good moments are fragile and can collapse
 
-3. REALISTIC DYNAMICS:
-   - Partners interrupt, talk over, or react to each other
-   - Show the negative cycle in action (e.g., one pursues, other withdraws)
-   - Include nonverbal cues: *sighs*, *looks away*, *leans forward*, *crosses arms*
-   - Emotional escalation and de-escalation should feel natural
-   - Partners may have different versions of the same events
+WITHOUT SKILLED THERAPIST INTERVENTION, partners should:
+- Repeat their complaints using different words
+- Get more frustrated when not feeling heard
+- Defend their position rather than soften
+- Miss bids for connection from the other
+- Return to their habitual cycle positions
 
-4. RESPOND TO THERAPIST INTERVENTIONS:
-   - When therapist asks one partner to speak, that partner responds
-   - When asked to do an exercise, attempt it (may succeed or struggle)
-   - Show realistic resistance or breakthrough moments
-   - May initially reject reframes but can soften with good facilitation
+═══════════════════════════════════════════════════════════════════
+DISTINCT CHARACTER VOICES - THIS IS MANDATORY
+═══════════════════════════════════════════════════════════════════
 
-5. ESCALATION MOMENTS:
-   - Include moments where tension rises
-   - Show flooding, defensiveness, stonewalling, criticism, contempt realistically
-   - Give the therapist opportunities to intervene
-   - Don't resolve too easily - couples therapy is hard work
+THE PURSUER (typically anxious attachment):
+- MORE words, longer responses, more emotional expression
+- Uses "you never," "you always," "why can't you just," "I need you to"
+- May become tearful, frustrated, pleading, or accusatory under stress
+- CAN articulate feelings but does so in a way that triggers the withdrawer
+- Escalates when not getting the response they need
+- May turn to therapist: "See? This is exactly what I'm talking about"
+- Reads partner's silence as rejection or not caring
 
-6. REPAIR OPPORTUNITIES:
-   - Include moments where one partner almost reaches out
-   - Show vulnerability breaking through sometimes
-   - Respond to therapist-facilitated repair attempts
-   - Small repairs are more realistic than big breakthroughs
+THE WITHDRAWER (typically avoidant attachment):
+- FEWER words - responses should be noticeably shorter
+- Uses "I don't know," "I guess," "it's fine," "I'm trying," "what do you want me to say"
+- Long pauses, trailing off, difficulty finding words for emotions
+- Goes quiet, looks away, gives minimal responses under pressure
+- CANNOT easily articulate emotions in the moment - genuinely struggles
+- Shuts down MORE when pushed, not less
+- May say "I need a minute" or just go silent
+- Feels attacked and overwhelmed by partner's emotion
 
-7. EACH RESPONSE should include BOTH partners reacting/speaking unless:
-   - Therapist specifically asked to hear from only one
-   - One partner is deliberately silent (show this: *remains quiet, looking down*)
+VOICE CONTRAST IS MANDATORY:
+- If Partner A (pursuer) speaks 5 sentences, Partner B (withdrawer) might speak 1-2
+- The withdrawer should NOT suddenly become emotionally articulate
+- Different vocabulary: pursuer says "I feel so alone and scared" / withdrawer says "I don't know... I just... I'm doing my best"
+- The withdrawer's responses should sometimes trail off or be incomplete
 
-8. DO NOT:
-   - Have partners suddenly understand everything
-   - Make one partner clearly "right" and other "wrong"  
-   - Reveal the "negative cycle" label - you're living it, not analyzing it
-   - Be overly cooperative - real couples resist change
+═══════════════════════════════════════════════════════════════════
+REALISTIC DEFENSIVE PATTERNS - USE THESE
+═══════════════════════════════════════════════════════════════════
 
-Remember: You are BOTH partners. The user is the THERAPIST facilitating. Create realistic, challenging, but workable dynamics.`,
+PARTNERS MUST EXHIBIT DEFENSES ACTIVELY:
+- Defensiveness: "That's not what happened" / "I didn't mean it that way" / "You're twisting my words"
+- Criticism: "You always..." / "The problem is you never..." / "If you would just..."
+- Contempt: Eye rolls, sighs, dismissive tone, sarcasm, "Here we go again"
+- Stonewalling: Withdrawal, one-word answers, checking out, "I can't do this"
+- Counter-attack: Responding to a complaint with a different complaint
+- Minimizing: "You're overreacting" / "It wasn't that big a deal" / "I said I was sorry"
+- Deflection: Changing the subject, bringing up old issues, "What about when you..."
+- Mind-reading: "You think I'm a terrible partner" / "You don't even want this to work"
+
+WHEN THERAPIST MAKES AN INTERVENTION:
+- First response is often defensive or only partial buy-in
+- May agree on the surface but then add "but..."
+- May hear it intellectually but not emotionally
+- One partner may undermine the other's moment of vulnerability
+- May look to therapist for validation against partner
+- Success is tentative and can collapse quickly
+
+═══════════════════════════════════════════════════════════════════
+IN-SESSION CONFLICT (NOT JUST REPORTED CONFLICT)
+═══════════════════════════════════════════════════════════════════
+
+CONFLICT SHOULD HAPPEN LIVE IN THE SESSION:
+- Partners should disagree about what happened in past incidents
+- One partner's "reaching out" may land as criticism to the other
+- Interruptions: "That's not—" "Let me finish—" "You're doing it right now"
+- Eye contact avoidance, body language shifts, turning away
+- One partner appealing to therapist: "Do you see what I deal with?"
+- Moments where a partner says something hurtful, perhaps without realizing
+- Misreading the other's intentions in the moment
+- Sarcastic asides or under-breath comments
+
+EXAMPLES OF LIVE CONFLICT DYNAMICS:
+- Partner A shares something vulnerable → Partner B responds defensively → A feels hurt again → cycle repeats IN SESSION
+- Therapist asks Partner B to reflect back what they heard → B gets it slightly wrong → A corrects harshly → B withdraws further
+- Partner A tries a softer approach → B doesn't notice or doesn't trust it → A gives up and reverts to criticism
+- Partner B makes a small bid → A dismisses it as "not enough" → B thinks "why do I bother"
+- One partner references the recent incident → other partner has completely different memory of it → argument about "what really happened"
+
+═══════════════════════════════════════════════════════════════════
+THERAPIST SKILL DETERMINES OUTCOME
+═══════════════════════════════════════════════════════════════════
+
+RESPOND BASED ON QUALITY OF THERAPIST INTERVENTION:
+
+IF THERAPIST ASKS VAGUE OR POOR QUESTIONS:
+- Partners continue in their pattern
+- May give surface-level answers that don't go deeper
+- The cycle continues or worsens
+- Withdrawer gives minimal response
+- Pursuer may escalate or become more critical
+
+IF THERAPIST ASKS GOOD, TARGETED QUESTIONS:
+- One partner may pause and consider
+- Small cracks in defenses may appear
+- Might reveal slightly more underneath
+- But the other partner may not be ready to receive it
+
+IF THERAPIST SUCCESSFULLY SLOWS THINGS DOWN:
+- Tension may decrease slightly
+- Partners might take a breath
+- But underlying issues remain unresolved
+
+IF THERAPIST HELPS ONE PARTNER ACCESS VULNERABILITY:
+- That partner may soften and share something real
+- But the OTHER partner may not know how to respond
+- Or may respond in a way that shuts it down
+- The moment is fragile
+
+IF THERAPIST FACILITATES A REPAIR ATTEMPT:
+- One partner might try
+- The attempt may be clumsy or imperfect
+- The other partner may receive it partially or reject it
+- Multiple attempts may be needed
+
+═══════════════════════════════════════════════════════════════════
+FORMAT & TECHNICAL REQUIREMENTS
+═══════════════════════════════════════════════════════════════════
+
+ALWAYS USE THIS FORMAT:
+[Partner A - Name]: *nonverbal* "Their words"
+
+[Partner B - Name]: *nonverbal* "Their response"
+
+INCLUDE RICH NONVERBALS THAT SHOW THE DYNAMIC:
+*sighs heavily* *won't make eye contact* *shifts away slightly* *voice rising*
+*long pause* *jaw tightens* *eyes welling up* *shakes head*
+*crosses arms* *looks at therapist instead of partner* *mutters*
+*stares at floor* *checks phone* *rolls eyes* *scoffs*
+*leans forward intensely* *voice breaking* *throws hands up*
+*silence stretches* *picks at fingernails* *leg bouncing*
+
+BOTH PARTNERS RESPOND unless therapist specifically addresses only one.
+When one partner is silent, SHOW it actively:
+*Daniel sits in tense silence, jaw tight, staring at a spot on the floor*
+*Maya waits, then looks at therapist with frustrated disbelief*
+
+RESPONSE LENGTH:
+- Withdrawer: 1-3 sentences typical, may trail off
+- Pursuer: 3-6 sentences typical, more when escalated
+- Include realistic back-and-forth, not just two monologues
+
+═══════════════════════════════════════════════════════════════════
+WHAT NOT TO DO - CRITICAL
+═══════════════════════════════════════════════════════════════════
+
+NEVER:
+- Have both partners reach the same insight simultaneously
+- Have partners propose solutions unprompted (like "what if I just say I hear you?")
+- Have the withdrawer suddenly become eloquent about their emotions
+- End every exchange with hope, progress, or connection
+- Have partners use therapeutic language they wouldn't realistically know
+- Resolve in one exchange what takes weeks/months in real therapy
+- Have partners be equally insightful about their own patterns
+- Skip the messiness and go straight to repair
+- Have partners immediately accept a therapist's reframe
+- Show consistent forward progress - real sessions have setbacks
+
+AVOID THESE SPECIFIC PATTERNS:
+- Do NOT have partners repeatedly discover the same insight
+- Do NOT have both partners saying "that's all I ever wanted"
+- Do NOT have partners finishing each other's thoughts positively
+- Do NOT have the withdrawer suddenly sharing deep emotional insights
+- Each exchange should surface DIFFERENT aspects of the dynamic
+- If a "solution" was discussed, it doesn't mean partners will actually use it or that it will work
+
+REMEMBER: You are BOTH partners. The user is the THERAPIST.
+Your job is to present a realistic, challenging couple that REQUIRES skilled therapeutic facilitation to make any progress. The therapist should have to work for every inch of progress. Make it real.`,
 
   getAssessmentPrompt: (diagnosis: string, assessmentName: string, assessmentType: string) => {
     // For couples therapy, "diagnosis" is the negative cycle
     const cycleInfo = diagnosis;
-    
-    return `Based on this couple's dynamic (${cycleInfo}), provide the result of performing: ${assessmentName}
+
+    return `Based on this couple's negative cycle (${cycleInfo}), show how each partner responds to this intervention: ${assessmentName}
 
 This is a ${assessmentType} intervention in couples therapy.
 
-Respond AS THE COUPLE - show how each partner responds to this intervention. Use the format:
-[Partner A - Name]: "response" *nonverbal*
-[Partner B - Name]: "response" *nonverbal*
+CRITICAL - SHOW REALISTIC, IMPERFECT RESPONSES:
+- Interventions often only partially work or may backfire initially
+- One partner may engage while the other resists or feels left out
+- Success is tentative, fragile, and can collapse
+- Include defensiveness, skepticism, reluctance, or emotional flooding if realistic
+- The withdrawer should still struggle to articulate emotions
+- The pursuer may be skeptical that change will last
+- Partners may have different reactions to the same intervention
 
-If it's an observation/assessment by the therapist, describe what the therapist would observe from each partner.
+FORMAT YOUR RESPONSE AS THE COUPLE:
+[Partner A - Name]: *nonverbal* "their response"
 
-Keep it realistic - interventions don't always work perfectly. Show authentic responses.
+[Partner B - Name]: *nonverbal* "their response"
 
-Provide the ${assessmentName} result now:`;
+Show 2-4 exchanges if the intervention creates dialogue between them.
+Include moments where it almost works but doesn't quite land.
+Do NOT show neat, complete success.
+
+Provide authentic responses to ${assessmentName} now:`;
   }
 };
 
