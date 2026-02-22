@@ -2,6 +2,8 @@
   "name": "nurse-trainer",
   "private": true,
   "version": "0.1.0",
+  "author": "Mike Herold",
+  "license": "MIT",
   "type": "module",
   "scripts": {
     "dev": "vite",

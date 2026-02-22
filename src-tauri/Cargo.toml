@@ -2,7 +2,8 @@
 name = "nurse-trainer"
 version = "0.1.0"
 description = "Nurse Training Simulator"
-authors = ["you"]
+authors = ["Mike Herold"]
+license = "MIT"
 edition = "2021"
 
 [lib]
