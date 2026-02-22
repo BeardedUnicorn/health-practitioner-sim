@@ -1341,9 +1341,123 @@ Provide authentic responses to ${assessmentName} now:`;
   }
 };
 
+export const midwifeConfig: ProfessionConfig = {
+  id: 'midwife',
+  name: 'Midwife / CNM',
+  emoji: '🤰',
+  title: 'Midwifery Training Simulator',
+  description: 'Practice clinical risk assessment, prenatal care, and postpartum triage from a midwifery perspective.',
+  userLabel: 'Midwife',
+  userEmoji: '🩺',
+  patientLabel: 'Client',
+  patientEmoji: '🤰',
+  diagnosisHint: '💡 Tip: When ready to assess the case, type "My clinical assessment is [assessment]"',
+  diagnosisPattern: /my\s+clinical\s+assessment\s+is\s+(.+)/i,
+  supportedSettings: ['clinic', 'home', 'birth_center', 'labor_delivery', 'telehealth', 'inpatient'],
+  defaultSetting: 'clinic',
+  categories: [
+    'Prenatal Complications (e.g., hyperemesis gravidarum, gestational hypertension, anemia, UTI in pregnancy)',
+    'High-Risk Screening (e.g., preeclampsia signs, gestational diabetes screening, placental concerns)',
+    'Early Labor Triage (e.g., PROM, preterm labor signs, latent phase management)',
+    'Active Labor Assessment (e.g., fetal station, cervical dilation, maternal coping, fetal heart patterns)',
+    'Immediate Postpartum (e.g., postpartum hemorrhage risk, fundal assessment, neonatal transition)',
+    'Postpartum Triage (e.g., postpartum preeclampsia, endometritis, mastitis, perinatal mood disorders)',
+    'Fetal Well-being (e.g., decreased fetal movement, non-stress test interpretation, amniotic fluid concerns)',
+    'Infection & Exposure (e.g., GBS status, TORCH infections, Chorioamnionitis signs)',
+    'Obstetric Emergencies (e.g., cord prolapse triage, placental abruption signs, shoulder dystocia prep)',
+    'Well-Woman Care (e.g., contraception counseling, preconception health, STI screening)'
+  ],
+  toolkit: [
+    {
+      title: 'Maternal Assessment',
+      items: [
+        { id: 'vitals', label: 'Vital Signs', emoji: '🩺', assessmentType: 'vitals', assessmentName: 'Maternal Vital Signs' },
+        { id: 'fundal_height', label: 'Fundal Height', emoji: '📏', assessmentType: 'physical', assessmentName: 'Fundal Height Measurement' },
+        { id: 'leopold', label: 'Leopold Maneuvers', emoji: '👐', assessmentType: 'physical', assessmentName: 'Leopold Maneuvers (Fetal Position)' },
+        { id: 'pelvic_exam', label: 'Cervical Exam', emoji: '✋', assessmentType: 'physical', assessmentName: 'Cervical Dilation, Effacement, and Station' },
+        { id: 'fundal_check', label: 'Fundal Check', emoji: '🤰', assessmentType: 'postpartum', assessmentName: 'Postpartum Fundal Height and Firmness' }
+      ]
+    },
+    {
+      title: 'Fetal Assessment',
+      items: [
+        { id: 'fetal_hr', label: 'Fetal Heart Rate', emoji: '💓', assessmentType: 'fetal', assessmentName: 'Fetal Heart Rate Auscultation/Doppler' },
+        { id: 'fetal_movement', label: 'Fetal Movement', emoji: '👣', assessmentType: 'fetal', assessmentName: 'Fetal Movement/Kick Count Assessment' },
+        { id: 'efm', label: 'Electronic Monitoring', emoji: '📈', assessmentType: 'fetal', assessmentName: 'EFM Strip Interpretation (Baseline, Variability, Decels)' }
+      ]
+    },
+    {
+      title: 'Clinical Screening',
+      items: [
+        { id: 'urine_dip', label: 'Urine Dipstick', emoji: '🧪', assessmentType: 'lab', assessmentName: 'Urine Dipstick (Protein, Glucose, Leukocytes)' },
+        { id: 'bp_triage', label: 'BP Triage', emoji: '🩸', assessmentType: 'vitals', assessmentName: 'Orthostatic BPs / Serial BP Monitoring' },
+        { id: 'edema', label: 'Edema/Reflexes', emoji: '🦶', assessmentType: 'physical', assessmentName: 'Peripheral Edema and Deep Tendon Reflexes/Clonus' }
+      ]
+    },
+    {
+      title: 'Triage & History',
+      items: [
+        { id: 'ob_hx', label: 'OB History', emoji: '📋', assessmentType: 'history', assessmentName: 'Obstetric History (GTPAL, Previous Births)' },
+        { id: 'rom_check', label: 'ROM Assessment', emoji: '💧', assessmentType: 'triage', assessmentName: 'Rupture of Membranes Assessment (Nitrazine, Ferning, Pooling)' },
+        { id: 'contraction_pattern', label: 'Contraction Pattern', emoji: '⏱️', assessmentType: 'triage', assessmentName: 'Contraction Frequency, Duration, and Intensity' }
+      ]
+    },
+    {
+      title: 'Comprehensive',
+      items: [
+        { id: 'risk_assessment', label: 'Risk Assessment', emoji: '⚠️', assessmentType: 'comprehensive', assessmentName: 'Comprehensive Clinical Risk Assessment' }
+      ]
+    }
+  ],
+  getSetupPrompt: (category: string, difficulty?: Difficulty, setting?: ClinicalSetting) => `You are a midwifery education system. Generate a realistic clinical scenario for Midwife/CNM training.
+
+IMPORTANT: You MUST select a condition from this category: ${category}
+Focus on clinical assessment, risk stratification, and the midwifery model of care.
+
+${getDifficultyInstructions(difficulty)}
+${getSettingInstructions(setting)}
+
+You must respond in EXACTLY this format (including the labels):
+DIAGNOSIS: [the specific clinical condition or triage outcome]
+CLIENT_PROFILE: [age, weeks pregnant/postpartum, G/P, relevant medical/social history]
+PRESENTING_COMPLAINT: [the client's concerns in their own words]
+SYMPTOMS: [list of clinical symptoms the client is experiencing]
+CLINICAL_CONTEXT: [relevant labs, previous prenatal findings, or birth history]
+
+Now generate a client with a condition from the ${category} category:`,
+
+  getSystemPrompt: (setupContent: string, difficulty?: Difficulty, setting?: ClinicalSetting) => `You are roleplaying as a MIDWIFERY CLIENT seeking clinical care or triage.
+
+YOUR PROFILE AND CONDITION:
+${setupContent}
+
+${getDifficultyInstructions(difficulty)}
+${getSettingInstructions(setting)}
+
+CRITICAL INSTRUCTIONS:
+1. You ARE the client. Speak in first person as the person seeking care.
+2. You are talking TO a Midwife who is assessing you clinically.
+3. Describe your physical sensations and concerns naturally, not in medical jargon.
+4. Show appropriate emotional response to your situation (anxiety about baby, pain, exhaustion).
+5. Do NOT diagnose yourself. You are seeking the midwife's expert clinical assessment.
+6. Do NOT reveal the diagnosis. 
+7. Keep responses to 1-3 sentences, as a real person would in a clinical setting.
+8. Respond to physical examination questions with what you feel or observe.
+
+Remember: You are the CLIENT. The user is the MIDWIFE conducting a clinical assessment.`,
+
+  getAssessmentPrompt: (diagnosis: string, assessmentName: string, assessmentType: string) => 
+    `Based on the client's condition (${diagnosis}), provide realistic ${assessmentName} findings for a ${assessmentType} assessment from a midwifery perspective.
+
+Respond with ONLY the clinical findings. Be specific and use proper obstetric/midwifery terminology. Keep it to 2-3 sentences.
+
+Provide the ${assessmentName} findings now:`
+};
+
 // Update the professionConfigs export to include the new config
 export const professionConfigs: Record<string, ProfessionConfig> = {
   nurse: nurseConfig,
+  midwife: midwifeConfig,
   psychiatrist: psychiatristConfig,
   psychologist: psychologistConfig,
   therapist: therapistConfig,

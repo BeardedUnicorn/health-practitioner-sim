@@ -1,4 +1,4 @@
-export type Profession = 'nurse' | 'psychiatrist' | 'psychologist' | 'therapist' | 'doula' | 'pregnancyPartner' | 'couplesTherapist';
+export type Profession = 'nurse' | 'midwife' | 'psychiatrist' | 'psychologist' | 'therapist' | 'doula' | 'pregnancyPartner' | 'couplesTherapist';
 
 export type Difficulty = 'beginner' | 'intermediate' | 'advanced';
 

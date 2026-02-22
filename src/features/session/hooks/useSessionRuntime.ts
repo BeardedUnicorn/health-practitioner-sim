@@ -146,6 +146,7 @@ export function useSessionRuntime({
             initialGreeting = '*sighs* Hey...';
             break;
           case 'doula':
+          case 'midwife':
             initialGreeting = "I'm so glad you're here...";
             break;
           case 'couplesTherapist': {
