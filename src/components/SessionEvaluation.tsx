@@ -11,6 +11,7 @@ import {
   EvaluationResponsePayload,
 } from '../types';
 import { addSessionRecord } from '../utils/progressStorage';
+import { useSessionContext } from '../features/session/state/session-context';
 import { requestCompletionText } from '../shared/llm/client';
 import { parseJsonObject } from '../shared/llm/json-parser';
 import './SessionEvaluation.css';
@@ -215,9 +216,9 @@ export function SessionEvaluation({
   onClose,
   onProgressSaved
 }: SessionEvaluationProps) {
+  const { actions: sessionActions } = useSessionContext();
   const [evaluation, setEvaluation] = useState<EvaluationData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [hasSaved, setHasSaved] = useState(false);
 
   const isCouplesTherapy = professionConfig.isCouplesTherapy;
@@ -249,7 +250,7 @@ export function SessionEvaluation({
 
   const generateEvaluation = useCallback(async () => {
     setIsLoading(true);
-    setError(null);
+    sessionActions.setError(null);
 
     const conversationText = conversationHistory
       .filter(msg => msg.role !== 'system')
@@ -284,11 +285,19 @@ export function SessionEvaluation({
       setEvaluation(evaluationData);
     } catch (err) {
       console.error('Evaluation error:', err);
-      setError('Unable to generate evaluation. Please try again.');
+      const message = err instanceof Error ? err.message : String(err);
+      const isAuthError = message.includes('401') || message.includes('403') || message.toLowerCase().includes('unauthorized') || message.toLowerCase().includes('api key');
+
+      sessionActions.setError({
+        title: 'Evaluation failed',
+        message: 'Unable to generate your session evaluation.',
+        details: `Error: ${message}\nModel: ${apiConfig.modelName}\nEndpoint: ${apiConfig.apiUrl}`,
+        isAuthError,
+      });
     } finally {
       setIsLoading(false);
     }
-  }, [apiConfig, caseSetup, conversationHistory, diagnosis, isCouplesTherapy, professionConfig, turnsUsed, userAnswer, wasCorrect]);
+  }, [apiConfig, caseSetup, conversationHistory, diagnosis, isCouplesTherapy, professionConfig, sessionActions, turnsUsed, userAnswer, wasCorrect]);
 
   useEffect(() => {
     void generateEvaluation();
@@ -328,13 +337,6 @@ export function SessionEvaluation({
             <div className="evaluation-loading">
               <div className="loading-spinner"></div>
               <p>Analyzing your {isCouplesTherapy ? 'couples therapy session' : 'performance'}...</p>
-            </div>
-          ) : error ? (
-            <div className="evaluation-error">
-              <p>⚠️ {error}</p>
-              <button onClick={generateEvaluation} className="btn-secondary">
-                🔄 Retry
-              </button>
             </div>
           ) : evaluation ? (
             <>

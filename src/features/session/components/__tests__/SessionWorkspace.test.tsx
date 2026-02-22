@@ -50,6 +50,7 @@ function createSessionContextValue(turnsExhausted: boolean): SessionContextValue
       streamingContent: '',
       showEvaluation: false,
       userFinalAnswer: '',
+      error: null,
     },
     actions: {
       setCurrentMessage: vi.fn(),
@@ -67,6 +68,8 @@ function createSessionContextValue(turnsExhausted: boolean): SessionContextValue
       resetSessionState: vi.fn(),
       cancelLoading: vi.fn(),
       endSession: vi.fn(),
+      setError: vi.fn(),
+      retryLastAction: vi.fn(async () => undefined),
     },
     meta: {
       turnsExhausted,

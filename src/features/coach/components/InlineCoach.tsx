@@ -1,5 +1,6 @@
 import { ApiConfig, Message, Profession } from '../../../types';
 import { useCoachContext } from '../state/coach-context';
+import { useSessionContext } from '../../session/state/session-context';
 import { useCoachSuggestions } from '../hooks/useCoachSuggestions';
 import '../../../components/Coach.css';
 
@@ -11,13 +12,15 @@ interface InlineCoachProps {
 }
 
 export function InlineCoach({ profession, conversationHistory, apiConfig, enabled }: InlineCoachProps) {
-  const { actions } = useCoachContext();
+  const { actions: coachActions } = useCoachContext();
+  const { actions: sessionActions } = useSessionContext();
   const { suggestions, isLoading } = useCoachSuggestions({
     mode: 'inline',
     enabled,
     profession,
     conversationHistory,
     apiConfig,
+    onError: sessionActions.setError,
   });
 
   if (!enabled) {
@@ -42,7 +45,7 @@ export function InlineCoach({ profession, conversationHistory, apiConfig, enable
           <button
             key={suggestion.id}
             className="inline-coach-chip"
-            onClick={() => actions.selectSuggestion(suggestion.fullText)}
+            onClick={() => coachActions.selectSuggestion(suggestion.fullText)}
             title={suggestion.fullText}
             disabled={isLoading}
           >

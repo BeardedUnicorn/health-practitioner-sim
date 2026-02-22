@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react';
 import { ApiConfig } from '../types';
+import { useSessionContext } from '../features/session/state/session-context';
+import { requestCompletionText } from '../shared/llm/client';
 import './SettingsModal.css';
 
 interface SettingsModalProps {
@@ -9,7 +11,10 @@ interface SettingsModalProps {
 }
 
 export function SettingsModal({ config, onChange, onClose }: SettingsModalProps) {
+  const { actions: sessionActions } = useSessionContext();
   const [draft, setDraft] = useState<ApiConfig>(config);
+  const [isTesting, setIsTesting] = useState(false);
+  const [testResult, setTestResult] = useState<{ success: boolean; message: string } | null>(null);
 
   // Keep draft in sync if the parent config changes while the modal is open.
   useEffect(() => {
@@ -24,6 +29,40 @@ export function SettingsModal({ config, onChange, onClose }: SettingsModalProps)
   const handleSave = () => {
     onChange(draft);
     onClose();
+  };
+
+  const handleTestConnection = async () => {
+    setIsTesting(true);
+    setTestResult(null);
+    sessionActions.setError(null);
+
+    try {
+      const result = await requestCompletionText(draft, {
+        model: draft.modelName,
+        messages: [{ role: 'user', content: 'Say "Connection successful" and nothing else.' }],
+        max_tokens: 10,
+      });
+
+      if (result.toLowerCase().includes('connection successful')) {
+        setTestResult({ success: true, message: 'Connection successful!' });
+      } else {
+        setTestResult({ success: true, message: `Connected, but received unexpected response: "${result.slice(0, 50)}..."` });
+      }
+    } catch (err) {
+      console.error('Test connection error:', err);
+      const message = err instanceof Error ? err.message : String(err);
+      const isAuthError = message.includes('401') || message.includes('403') || message.toLowerCase().includes('unauthorized') || message.toLowerCase().includes('api key');
+
+      sessionActions.setError({
+        title: 'Connection test failed',
+        message: 'Could not connect to the API with these settings.',
+        details: `Error: ${message}\nModel: ${draft.modelName}\nEndpoint: ${draft.apiUrl}`,
+        isAuthError,
+      });
+      setTestResult({ success: false, message: 'Connection failed.' });
+    } finally {
+      setIsTesting(false);
+    }
   };
 
   return (
@@ -64,6 +103,21 @@ export function SettingsModal({ config, onChange, onClose }: SettingsModalProps)
               onChange={(e) => setDraft({ ...draft, modelName: e.target.value })}
               placeholder="Enter model name"
             />
+          </div>
+
+          <div className="settings-actions">
+            <button 
+              onClick={handleTestConnection} 
+              className="btn-secondary btn-small"
+              disabled={isTesting}
+            >
+              {isTesting ? 'Testing...' : '🧪 Test Connection'}
+            </button>
+            {testResult && (
+              <span className={`test-result ${testResult.success ? 'success' : 'error'}`}>
+                {testResult.message}
+              </span>
+            )}
           </div>
         </div>
 

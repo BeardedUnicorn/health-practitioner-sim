@@ -7,6 +7,7 @@ import { LoadingSession } from '../components/LoadingSession';
 import { SessionEvaluation } from '../components/SessionEvaluation';
 import { ProgressScreen } from '../components/ProgressScreen';
 import { CaseSetupModal } from '../components/CaseSetupModal';
+import { ErrorBanner } from '../components/ErrorBanner';
 import { useAppContext } from './state/app-context';
 import { useSessionContext } from '../features/session/state/session-context';
 import { SessionToolbar } from '../features/session/components/SessionToolbar';
@@ -104,6 +105,15 @@ export function AppShell() {
 
   return (
     <div className="app">
+      {sessionState.error && (
+        <ErrorBanner
+          error={sessionState.error}
+          onDismiss={() => sessionActions.setError(null)}
+          onRetry={sessionActions.retryLastAction}
+          onOpenSettings={appActions.openSettings}
+        />
+      )}
+
       {appState.showSettings && (
         <SettingsModal
           config={appState.apiConfig}

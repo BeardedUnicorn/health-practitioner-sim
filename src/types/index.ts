@@ -169,6 +169,8 @@ export interface LlmCompletionRequest {
   messages: LlmChatMessage[];
   temperature?: number;
   stream?: boolean;
+  max_tokens?: number;
+  top_p?: number;
 }
 
 export type LlmStreamEvent =

@@ -1,6 +1,7 @@
 /* eslint-disable react-refresh/only-export-components */
 import { createContext, ReactNode, use, useMemo, useReducer } from 'react';
 import { CaseSetup } from '../../../types';
+import { AppError } from '../../../components/ErrorBanner';
 import { useAppContext } from '../../../app/state/app-context';
 import { INITIAL_SESSION_STATE, SessionState, sessionReducer } from './session-reducer';
 import { useSessionRuntime } from '../hooks/useSessionRuntime';
@@ -21,6 +22,8 @@ interface SessionActions {
   resetSessionState: () => void;
   cancelLoading: () => void;
   endSession: () => void;
+  setError: (error: AppError | null) => void;
+  retryLastAction: () => Promise<void>;
 }
 
 interface SessionMeta {
@@ -77,6 +80,8 @@ export function SessionProvider({ children }: SessionProviderProps) {
         resetSessionState: runtime.resetSessionState,
         cancelLoading: runtime.cancelLoading,
         endSession: runtime.resetSessionState,
+        setError: (error) => dispatch({ type: 'set-error', payload: error }),
+        retryLastAction: runtime.retryLastAction,
       },
       meta: {
         turnsExhausted,

@@ -1,5 +1,6 @@
 import { ApiConfig, Message, Profession, SuggestionType } from '../../../types';
 import { useCoachContext } from '../state/coach-context';
+import { useSessionContext } from '../../session/state/session-context';
 import { useCoachSuggestions } from '../hooks/useCoachSuggestions';
 import '../../../components/Coach.css';
 
@@ -18,12 +19,14 @@ const SUGGESTION_TYPE_INFO: Record<SuggestionType, { emoji: string; label: strin
 };
 
 export function CoachPanel({ profession, conversationHistory, apiConfig, onClose }: CoachPanelProps) {
-  const { actions } = useCoachContext();
+  const { actions: coachActions } = useCoachContext();
+  const { actions: sessionActions } = useSessionContext();
   const { suggestions, summary, missingAreas, isLoading, error, refresh } = useCoachSuggestions({
     mode: 'panel',
     profession,
     conversationHistory,
     apiConfig,
+    onError: sessionActions.setError,
   });
 
   const hasData = suggestions.length > 0 || summary || missingAreas.length > 0;
@@ -84,7 +87,7 @@ export function CoachPanel({ profession, conversationHistory, apiConfig, onClose
                     <button
                       key={suggestion.id}
                       className={`coach-suggestion-chip type-${suggestion.type}`}
-                      onClick={() => actions.selectSuggestion(suggestion.fullText)}
+                      onClick={() => coachActions.selectSuggestion(suggestion.fullText)}
                       title={suggestion.fullText}
                       disabled={isLoading}
                     >

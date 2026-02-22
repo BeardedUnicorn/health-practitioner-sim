@@ -27,6 +27,13 @@ export function useSessionRuntime({
 }: UseSessionRuntimeParams) {
   const setupAbortRef = useRef<AbortController | null>(null);
   const streamAbortRef = useRef<AbortController | null>(null);
+  const retryRef = useRef<(() => Promise<void | boolean>) | null>(null);
+
+  const retryLastAction = useCallback(async () => {
+    if (retryRef.current) {
+      await retryRef.current();
+    }
+  }, []);
 
   const abortStream = useCallback(() => {
     if (streamAbortRef.current) {
@@ -81,6 +88,7 @@ export function useSessionRuntime({
 
   const startSessionWithSetup = useCallback(
     async (setup: CaseSetup): Promise<boolean> => {
+      retryRef.current = () => startSessionWithSetup(setup);
       if (!professionConfig) {
         return false;
       }
@@ -173,6 +181,7 @@ export function useSessionRuntime({
         };
 
         dispatch({ type: 'set-session', payload: nextSession });
+        dispatch({ type: 'set-error', payload: null });
         setupAbortRef.current = null;
         return true;
       } catch (error) {
@@ -181,7 +190,17 @@ export function useSessionRuntime({
         }
 
         const message = error instanceof Error ? error.message : String(error);
-        alert(`Error starting session: ${message}`);
+        const isAuthError = message.includes('401') || message.includes('403') || message.toLowerCase().includes('unauthorized') || message.toLowerCase().includes('api key');
+        
+        dispatch({
+          type: 'set-error',
+          payload: {
+            title: 'Failed to start session',
+            message: 'There was a problem initializing the patient case.',
+            details: `Error: ${message}\nModel: ${apiConfig.modelName}\nEndpoint: ${apiConfig.apiUrl}`,
+            isAuthError,
+          }
+        });
 
         setupAbortRef.current = null;
         return false;
@@ -223,6 +242,85 @@ export function useSessionRuntime({
       },
     });
 
+    const executeStream = async (history: Message[]) => {
+      retryRef.current = () => executeStream(history);
+      
+      const controller = new AbortController();
+      streamAbortRef.current = controller;
+
+      dispatch({ type: 'set-loading', payload: true });
+      dispatch({ type: 'set-streaming', payload: false });
+      dispatch({ type: 'set-streaming-content', payload: '' });
+      dispatch({ type: 'set-error', payload: null });
+
+      try {
+        dispatch({ type: 'set-loading', payload: false });
+        dispatch({ type: 'set-streaming', payload: true });
+
+        let fullContent = '';
+        for await (const event of streamCompletion(
+          apiConfig,
+          {
+            model: apiConfig.modelName,
+            messages: history.map((message) => ({
+              role: message.role,
+              content: message.content,
+            })),
+            temperature: 0.7,
+          },
+          controller.signal,
+        )) {
+          if (event.type === 'delta') {
+            fullContent += event.content;
+            dispatch({ type: 'set-streaming-content', payload: fullContent });
+          }
+        }
+
+        if (fullContent) {
+          dispatch({
+            type: 'update-session',
+            payload: (session) => {
+              if (!session) return null;
+              return {
+                ...session,
+                conversationHistory: [
+                  ...session.conversationHistory,
+                  { role: 'assistant', content: fullContent },
+                ],
+              };
+            },
+          });
+        }
+        retryRef.current = null;
+      } catch (error) {
+        if (error instanceof Error && error.name === 'AbortError') {
+          return;
+        }
+
+        const message = error instanceof Error ? error.message : String(error);
+        const isAuthError =
+          message.includes('401') ||
+          message.includes('403') ||
+          message.toLowerCase().includes('unauthorized') ||
+          message.toLowerCase().includes('api key');
+
+        dispatch({
+          type: 'set-error',
+          payload: {
+            title: 'Message failed',
+            message: 'The patient failed to respond.',
+            details: `Error: ${message}\nModel: ${apiConfig.modelName}\nEndpoint: ${apiConfig.apiUrl}`,
+            isAuthError,
+          },
+        });
+      } finally {
+        dispatch({ type: 'set-streaming', payload: false });
+        dispatch({ type: 'set-streaming-content', payload: '' });
+        dispatch({ type: 'set-loading', payload: false });
+        streamAbortRef.current = null;
+      }
+    };
+
     const diagnosisMatch = userMessage.match(professionConfig.diagnosisPattern);
 
     if (diagnosisMatch) {
@@ -257,64 +355,7 @@ export function useSessionRuntime({
       return;
     }
 
-    const controller = new AbortController();
-    streamAbortRef.current = controller;
-
-    dispatch({ type: 'set-loading', payload: true });
-    dispatch({ type: 'set-streaming', payload: false });
-    dispatch({ type: 'set-streaming-content', payload: '' });
-
-    try {
-      dispatch({ type: 'set-loading', payload: false });
-      dispatch({ type: 'set-streaming', payload: true });
-
-      let fullContent = '';
-      for await (const event of streamCompletion(
-        apiConfig,
-        {
-          model: apiConfig.modelName,
-          messages: updatedHistoryWithUserMessage.map((message) => ({
-            role: message.role,
-            content: message.content,
-          })),
-          temperature: 0.7,
-        },
-        controller.signal,
-      )) {
-        if (event.type === 'delta') {
-          fullContent += event.content;
-          dispatch({ type: 'set-streaming-content', payload: fullContent });
-        }
-      }
-
-      if (fullContent) {
-        dispatch({
-          type: 'update-session',
-          payload: (session) => {
-            if (!session) return null;
-            return {
-              ...session,
-              conversationHistory: [
-                ...session.conversationHistory,
-                { role: 'assistant', content: fullContent },
-              ],
-            };
-          },
-        });
-      }
-    } catch (error) {
-      if (error instanceof Error && error.name === 'AbortError') {
-        return;
-      }
-
-      const message = error instanceof Error ? error.message : String(error);
-      alert(`Error sending message: ${message}`);
-    } finally {
-      dispatch({ type: 'set-streaming', payload: false });
-      dispatch({ type: 'set-streaming-content', payload: '' });
-      dispatch({ type: 'set-loading', payload: false });
-      streamAbortRef.current = null;
-    }
+    await executeStream(updatedHistoryWithUserMessage);
   }, [apiConfig, dispatch, professionConfig, state, stopStreaming]);
 
   const forceSubmit = useCallback(() => {
@@ -377,72 +418,94 @@ export function useSessionRuntime({
         return;
       }
 
+      const executeAssessment = async (name: string, type: string, prompt: string) => {
+        retryRef.current = () => executeAssessment(name, type, prompt);
+        
+        const controller = new AbortController();
+        streamAbortRef.current = controller;
+
+        dispatch({ type: 'set-loading', payload: true });
+        dispatch({ type: 'set-error', payload: null });
+
+        try {
+          dispatch({ type: 'set-loading', payload: false });
+          dispatch({ type: 'set-streaming', payload: true });
+          dispatch({ type: 'set-streaming-content', payload: `📋 ${name}: ` });
+
+          let fullContent = '';
+          for await (const event of streamCompletion(
+            apiConfig,
+            {
+              model: apiConfig.modelName,
+              messages: [
+                { role: 'system', content: currentSession.conversationHistory[0].content },
+                { role: 'user', content: prompt },
+              ],
+              temperature: 0.5,
+            },
+            controller.signal,
+          )) {
+            if (event.type === 'delta') {
+              fullContent += event.content;
+              dispatch({
+                type: 'set-streaming-content',
+                payload: `📋 ${name}: ${fullContent}`,
+              });
+            }
+          }
+
+          const assessmentMessage = `📋 ${name}: ${fullContent}`;
+          dispatch({
+            type: 'update-session',
+            payload: (session) => {
+              if (!session) return null;
+              return {
+                ...session,
+                conversationHistory: [
+                  ...session.conversationHistory,
+                  { role: 'assistant', content: assessmentMessage },
+                ],
+              };
+            },
+          });
+          retryRef.current = null;
+        } catch (error) {
+          if (error instanceof Error && error.name === 'AbortError') {
+            return;
+          }
+
+          const message = error instanceof Error ? error.message : String(error);
+          const isAuthError =
+            message.includes('401') ||
+            message.includes('403') ||
+            message.toLowerCase().includes('unauthorized') ||
+            message.toLowerCase().includes('api key');
+
+          dispatch({
+            type: 'set-error',
+            payload: {
+              title: 'Assessment failed',
+              message: `Could not complete ${name}.`,
+              details: `Error: ${message}\nModel: ${apiConfig.modelName}\nEndpoint: ${apiConfig.apiUrl}`,
+              isAuthError,
+            },
+          });
+        } finally {
+          dispatch({ type: 'set-streaming', payload: false });
+          dispatch({ type: 'set-streaming-content', payload: '' });
+          dispatch({ type: 'set-loading', payload: false });
+          dispatch({ type: 'set-performing-assessment', payload: false });
+          streamAbortRef.current = null;
+        }
+      };
+
       const assessmentPrompt = professionConfig.getAssessmentPrompt(
         currentSession.diagnosis,
         assessmentName,
         assessmentType,
       );
 
-      const controller = new AbortController();
-      streamAbortRef.current = controller;
-
-      dispatch({ type: 'set-loading', payload: true });
-
-      try {
-        dispatch({ type: 'set-loading', payload: false });
-        dispatch({ type: 'set-streaming', payload: true });
-        dispatch({ type: 'set-streaming-content', payload: `📋 ${assessmentName}: ` });
-
-        let fullContent = '';
-        for await (const event of streamCompletion(
-          apiConfig,
-          {
-            model: apiConfig.modelName,
-            messages: [
-              { role: 'system', content: currentSession.conversationHistory[0].content },
-              { role: 'user', content: assessmentPrompt },
-            ],
-            temperature: 0.5,
-          },
-          controller.signal,
-        )) {
-          if (event.type === 'delta') {
-            fullContent += event.content;
-            dispatch({
-              type: 'set-streaming-content',
-              payload: `📋 ${assessmentName}: ${fullContent}`,
-            });
-          }
-        }
-
-        const assessmentMessage = `📋 ${assessmentName}: ${fullContent}`;
-        dispatch({
-          type: 'update-session',
-          payload: (session) => {
-            if (!session) return null;
-            return {
-              ...session,
-              conversationHistory: [
-                ...session.conversationHistory,
-                { role: 'assistant', content: assessmentMessage },
-              ],
-            };
-          },
-        });
-      } catch (error) {
-        if (error instanceof Error && error.name === 'AbortError') {
-          return;
-        }
-
-        const message = error instanceof Error ? error.message : String(error);
-        alert(`Error performing assessment: ${message}`);
-      } finally {
-        dispatch({ type: 'set-streaming', payload: false });
-        dispatch({ type: 'set-streaming-content', payload: '' });
-        dispatch({ type: 'set-loading', payload: false });
-        dispatch({ type: 'set-performing-assessment', payload: false });
-        streamAbortRef.current = null;
-      }
+      await executeAssessment(assessmentName, assessmentType, assessmentPrompt);
     },
     [apiConfig, dispatch, professionConfig, state, stopStreaming],
   );
@@ -456,5 +519,6 @@ export function useSessionRuntime({
     sendMessage,
     forceSubmit,
     performAssessment,
+    retryLastAction,
   };
 }

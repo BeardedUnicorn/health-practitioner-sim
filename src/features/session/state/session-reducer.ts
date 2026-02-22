@@ -1,4 +1,5 @@
 import { PatientSession } from '../../../types';
+import { AppError } from '../../../components/ErrorBanner';
 
 export interface SessionFeedback {
   correct: boolean;
@@ -19,6 +20,7 @@ export interface SessionState {
   streamingContent: string;
   showEvaluation: boolean;
   userFinalAnswer: string;
+  error: AppError | null;
 }
 
 export const INITIAL_SESSION_STATE: SessionState = {
@@ -35,6 +37,7 @@ export const INITIAL_SESSION_STATE: SessionState = {
   streamingContent: '',
   showEvaluation: false,
   userFinalAnswer: '',
+  error: null,
 };
 
 export type SessionAction =
@@ -52,6 +55,7 @@ export type SessionAction =
   | { type: 'set-streaming-content'; payload: string }
   | { type: 'set-show-evaluation'; payload: boolean }
   | { type: 'set-user-final-answer'; payload: string }
+  | { type: 'set-error'; payload: AppError | null }
   | { type: 'reset-session' };
 
 export function sessionReducer(state: SessionState, action: SessionAction): SessionState {
@@ -125,6 +129,11 @@ export function sessionReducer(state: SessionState, action: SessionAction): Sess
       return {
         ...state,
         userFinalAnswer: action.payload,
+      };
+    case 'set-error':
+      return {
+        ...state,
+        error: action.payload,
       };
     case 'reset-session':
       return {

@@ -62,6 +62,23 @@
   background: rgba(255, 255, 255, 0.06);
 }
 
+.error-banner__btn--primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: white;
+  font-weight: 500;
+}
+
+.error-banner__btn--primary:hover {
+  background: var(--accent-hover);
+  opacity: 0.9;
+}
+
+.error-banner__btn--small {
+  padding: 0.15rem 0.4rem;
+  font-size: 0.75rem;
+}
+
 .error-banner__btn--close {
   width: 32px;
   height: 28px;
@@ -69,14 +86,30 @@
   font-size: 1.1rem;
 }
 
-.error-banner__details {
+.error-banner__details-container {
   margin-top: 0.5rem;
   background: rgba(0, 0, 0, 0.25);
   border: 1px solid var(--border-subtle);
   border-radius: 10px;
+  overflow: hidden;
+}
+
+.error-banner__details-header {
+  background: rgba(255, 255, 255, 0.05);
+  padding: 0.25rem 0.5rem;
+  border-bottom: 1px solid var(--border-subtle);
+  display: flex;
+  justify-content: flex-end;
+}
+
+.error-banner__details {
+  margin: 0;
+  border: none;
+  background: transparent;
   padding: 0.5rem 0.6rem;
   overflow: auto;
   max-height: 200px;
   color: var(--text-secondary);
   font-size: 0.8rem;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
 }

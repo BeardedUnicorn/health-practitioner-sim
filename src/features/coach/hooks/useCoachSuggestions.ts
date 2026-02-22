@@ -121,6 +121,7 @@ interface UseCoachSuggestionsParams {
   profession: Profession;
   conversationHistory: Message[];
   apiConfig: ApiConfig;
+  onError?: (error: { title: string; message: string; details: string; isAuthError: boolean }) => void;
 }
 
 interface UseCoachSuggestionsResult {
@@ -138,6 +139,7 @@ export function useCoachSuggestions({
   profession,
   conversationHistory,
   apiConfig,
+  onError,
 }: UseCoachSuggestionsParams): UseCoachSuggestionsResult {
   const [suggestions, setSuggestions] = useState<CoachSuggestion[]>([]);
   const [summary, setSummary] = useState('');
@@ -246,6 +248,18 @@ export function useCoachSuggestions({
 
         if (requestId === requestIdRef.current) {
           setError('Unable to generate coaching advice');
+          
+          if (onError) {
+            const message = fetchError instanceof Error ? fetchError.message : String(fetchError);
+            const isAuthError = message.includes('401') || message.includes('403') || message.toLowerCase().includes('unauthorized') || message.toLowerCase().includes('api key');
+
+            onError({
+              title: 'Coach failed',
+              message: 'Unable to generate coaching advice.',
+              details: `Error: ${message}\nModel: ${apiConfig.modelName}\nEndpoint: ${apiConfig.apiUrl}`,
+              isAuthError,
+            });
+          }
         }
       })
       .finally(() => {
@@ -257,7 +271,7 @@ export function useCoachSuggestions({
     return () => {
       controller.abort();
     };
-  }, [apiConfig, conversationHistory, enabled, fingerprint, mode, profession, refreshToken]);
+  }, [apiConfig, conversationHistory, enabled, fingerprint, mode, profession, refreshToken, onError]);
 
   return {
     suggestions,

@@ -5,15 +5,28 @@ export interface AppError {
   title: string;
   message: string;
   details?: string;
+  isAuthError?: boolean;
 }
 
 interface ErrorBannerProps {
   error: AppError;
   onDismiss: () => void;
+  onRetry?: () => void;
+  onOpenSettings?: () => void;
 }
 
-export function ErrorBanner({ error, onDismiss }: ErrorBannerProps) {
+export function ErrorBanner({ error, onDismiss, onRetry, onOpenSettings }: ErrorBannerProps) {
   const [showDetails, setShowDetails] = useState(false);
+
+  const handleCopyDetails = async () => {
+    if (error.details) {
+      try {
+        await navigator.clipboard.writeText(error.details);
+      } catch (err) {
+        console.error('Failed to copy error details:', err);
+      }
+    }
+  };
 
   return (
     <div className="error-banner" role="alert" aria-live="polite">
@@ -25,6 +38,24 @@ export function ErrorBanner({ error, onDismiss }: ErrorBannerProps) {
           </div>
 
           <div className="error-banner__actions">
+            {onRetry && (
+              <button
+                className="error-banner__btn error-banner__btn--primary"
+                onClick={onRetry}
+                type="button"
+              >
+                Retry
+              </button>
+            )}
+            {error.isAuthError && onOpenSettings && (
+              <button
+                className="error-banner__btn"
+                onClick={onOpenSettings}
+                type="button"
+              >
+                Open Settings
+              </button>
+            )}
             {error.details && (
               <button
                 className="error-banner__btn"
@@ -48,7 +79,18 @@ export function ErrorBanner({ error, onDismiss }: ErrorBannerProps) {
         <div className="error-banner__message">{error.message}</div>
 
         {showDetails && error.details && (
-          <pre className="error-banner__details">{error.details}</pre>
+          <div className="error-banner__details-container">
+            <div className="error-banner__details-header">
+              <button
+                className="error-banner__btn error-banner__btn--small"
+                onClick={handleCopyDetails}
+                type="button"
+              >
+                Copy Details
+              </button>
+            </div>
+            <pre className="error-banner__details">{error.details}</pre>
+          </div>
         )}
       </div>
     </div>
