@@ -189,8 +189,17 @@ export function SessionWorkspace({
               profession={profession}
               conversationHistory={session.conversationHistory}
               apiConfig={apiConfig}
-              enabled={state.inlineCoachEnabled}
+              enabled={state.inlineCoachEnabled && state.session?.mode !== 'exam'}
+              trainingMode={session.mode || 'guided'}
             />
+          )}
+
+          {!state.feedback && !meta.turnsExhausted && state.session?.mode === 'exam' && !state.showCoach && (
+            <div className="reveal-hint-container">
+              <button onClick={actions.revealHint} className="btn-secondary">
+                Reveal Hint ({state.session.hintsUsed} used)
+              </button>
+            </div>
           )}
 
           {meta.turnsExhausted ? (
@@ -268,6 +277,9 @@ export function SessionWorkspace({
                 conversationHistory={session.conversationHistory}
                 apiConfig={apiConfig}
                 onClose={() => actions.setShowCoach(false)}
+                trainingMode={session.mode || 'guided'}
+                hintsUsed={session.hintsUsed || 0}
+                onRevealHint={actions.revealHint}
               />
             </div>
           </>

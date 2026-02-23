@@ -1,4 +1,4 @@
-import { ApiConfig, Message, Profession } from '../../../types';
+import { ApiConfig, Message, Profession, TrainingMode } from '../../../types';
 import { useCoachContext } from '../state/coach-context';
 import { useCoachSuggestions } from '../hooks/useCoachSuggestions';
 import '../../../components/Coach.css';
@@ -8,13 +8,21 @@ interface InlineCoachProps {
   conversationHistory: Message[];
   apiConfig: ApiConfig;
   enabled: boolean;
+  trainingMode: TrainingMode;
 }
 
-export function InlineCoach({ profession, conversationHistory, apiConfig, enabled }: InlineCoachProps) {
+export function InlineCoach({
+  profession,
+  conversationHistory,
+  apiConfig,
+  enabled,
+  trainingMode,
+}: InlineCoachProps) {
   const { actions } = useCoachContext();
   const { suggestions, isLoading } = useCoachSuggestions({
     mode: 'inline',
     enabled,
+    trainingMode,
     profession,
     conversationHistory,
     apiConfig,

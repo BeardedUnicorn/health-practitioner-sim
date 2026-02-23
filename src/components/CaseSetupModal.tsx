@@ -1,5 +1,12 @@
 import { useState, useEffect } from 'react';
-import { Profession, Difficulty, ClinicalSetting, CaseSetup, ProfessionConfig } from '../types';
+import {
+  Profession,
+  Difficulty,
+  ClinicalSetting,
+  CaseSetup,
+  ProfessionConfig,
+  TrainingMode,
+} from '../types';
 import { getProfessionPreferences, saveProfessionPreferences } from '../utils/progressStorage';
 import './CaseSetupModal.css';
 
@@ -53,6 +60,7 @@ export function CaseSetupModal({
   const [setting, setSetting] = useState<ClinicalSetting>(professionConfig.defaultSetting);
   const [timePressureEnabled, setTimePressureEnabled] = useState(false);
   const [maxTurns, setMaxTurns] = useState<number>(15);
+  const [mode, setMode] = useState<TrainingMode>('guided');
 
   // Load saved preferences on mount
   useEffect(() => {
@@ -94,6 +102,7 @@ export function CaseSetupModal({
       setting,
       timePressureEnabled,
       maxTurns: timePressureEnabled ? maxTurns : null,
+      mode,
       createdAt: Date.now()
     };
 
@@ -230,6 +239,36 @@ export function CaseSetupModal({
                 </div>
               </div>
             )}
+          </div>
+
+          {/* Training Mode Selection */}
+          <div className="setup-section">
+            <label className="setup-label">
+              <span className="label-icon">🎓</span>
+              Training Mode
+            </label>
+            <div className="difficulty-options">
+              <button
+                className={`difficulty-option ${mode === 'guided' ? 'selected' : ''}`}
+                onClick={() => setMode('guided')}
+              >
+                <span className="difficulty-emoji">🤝</span>
+                <div className="difficulty-text">
+                  <strong>Guided</strong>
+                  <span>Get real-time feedback and suggestions.</span>
+                </div>
+              </button>
+              <button
+                className={`difficulty-option ${mode === 'exam' ? 'selected' : ''}`}
+                onClick={() => setMode('exam')}
+              >
+                <span className="difficulty-emoji">📝</span>
+                <div className="difficulty-text">
+                  <strong>Exam</strong>
+                  <span>Test your skills with no assistance.</span>
+                </div>
+              </button>
+            </div>
           </div>
         </div>
 

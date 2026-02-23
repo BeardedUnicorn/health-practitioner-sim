@@ -6,6 +6,7 @@ import {
   Message,
   Profession,
   SuggestionType,
+  TrainingMode,
 } from '../../../types';
 import { professionConfigs } from '../../../config/professionConfig';
 import { requestCompletionText } from '../../../shared/llm/client';
@@ -117,7 +118,9 @@ Focus on gathering information, NOT diagnosing. No other text.`;
 
 interface UseCoachSuggestionsParams {
   mode: Mode;
-  enabled?: boolean;
+  enabled: boolean;
+  trainingMode: TrainingMode;
+  hintsUsed?: number;
   profession: Profession;
   conversationHistory: Message[];
   apiConfig: ApiConfig;
@@ -134,7 +137,9 @@ interface UseCoachSuggestionsResult {
 
 export function useCoachSuggestions({
   mode,
-  enabled = true,
+  enabled,
+  trainingMode,
+  hintsUsed,
   profession,
   conversationHistory,
   apiConfig,
@@ -149,6 +154,7 @@ export function useCoachSuggestions({
   const abortControllerRef = useRef<AbortController | null>(null);
   const requestIdRef = useRef(0);
   const lastFingerprintRef = useRef('');
+  const lastHintsUsedRef = useRef(hintsUsed);
 
   const fingerprint = useMemo(
     () => getConversationFingerprint(conversationHistory),
@@ -174,7 +180,14 @@ export function useCoachSuggestions({
       return;
     }
 
-    if (!fingerprint || fingerprint === lastFingerprintRef.current) {
+    const lastMessage = conversationHistory[conversationHistory.length - 1];
+    const isAutomaticRun = trainingMode === 'guided' && lastMessage?.role === 'user';
+    const hasNewContent = fingerprint && fingerprint !== lastFingerprintRef.current;
+
+    const hasUsedNewHint = hintsUsed !== undefined && hintsUsed > (lastHintsUsedRef.current ?? -1);
+    const isManualRun = refreshToken > 0;
+
+    if (!isManualRun && !hasUsedNewHint && (!isAutomaticRun || !hasNewContent)) {
       return;
     }
 
@@ -237,6 +250,7 @@ export function useCoachSuggestions({
         }
 
         lastFingerprintRef.current = fingerprint;
+        lastHintsUsedRef.current = hintsUsed;
         setError(null);
       })
       .catch((fetchError) => {
@@ -257,7 +271,18 @@ export function useCoachSuggestions({
     return () => {
       controller.abort();
     };
-  }, [apiConfig, conversationHistory, enabled, fingerprint, mode, profession, refreshToken]);
+  }, [
+    apiConfig,
+    conversationHistory,
+    enabled,
+    fingerprint,
+    hintsUsed,
+    mode,
+    profession,
+    refreshToken,
+    trainingMode,
+  ]);
+
 
   return {
     suggestions,

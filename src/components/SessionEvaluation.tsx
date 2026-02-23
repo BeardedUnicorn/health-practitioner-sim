@@ -9,6 +9,7 @@ import {
   Difficulty,
   ClinicalSetting,
   EvaluationResponsePayload,
+  TrainingMode,
 } from '../types';
 import { addSessionRecord } from '../utils/progressStorage';
 import { requestCompletionText } from '../shared/llm/client';
@@ -24,6 +25,8 @@ interface SessionEvaluationProps {
   wasCorrect: boolean;
   caseSetup?: CaseSetup;
   turnsUsed?: number;
+  mode?: TrainingMode;
+  hintsUsed?: number;
   onNewSession: () => void;
   onClose: () => void;
   onProgressSaved?: () => void;
@@ -211,9 +214,11 @@ export function SessionEvaluation({
   wasCorrect,
   caseSetup,
   turnsUsed,
+  mode,
+  hintsUsed,
   onNewSession,
   onClose,
-  onProgressSaved
+  onProgressSaved,
 }: SessionEvaluationProps) {
   const [evaluation, setEvaluation] = useState<EvaluationData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -240,12 +245,29 @@ export function SessionEvaluation({
       summary: evaluation.summary,
       strengths: evaluation.strengths,
       gaps: evaluation.gaps,
-      safetyFlags: evaluation.safetyFlags
+      safetyFlags: evaluation.safetyFlags,
+      mode,
+      hintsUsed,
     });
 
     setHasSaved(true);
     onProgressSaved?.();
-  }, [caseSetup?.category, caseSetup?.difficulty, caseSetup?.maxTurns, caseSetup?.setting, caseSetup?.timePressureEnabled, diagnosis, evaluation, onProgressSaved, professionConfig.id, turnsUsed, userAnswer, wasCorrect]);
+  }, [
+    caseSetup?.category,
+    caseSetup?.difficulty,
+    caseSetup?.maxTurns,
+    caseSetup?.setting,
+    caseSetup?.timePressureEnabled,
+    diagnosis,
+    evaluation,
+    onProgressSaved,
+    professionConfig.id,
+    turnsUsed,
+    userAnswer,
+    wasCorrect,
+    mode,
+    hintsUsed,
+  ]);
 
   const generateEvaluation = useCallback(async () => {
     setIsLoading(true);
@@ -359,6 +381,18 @@ export function SessionEvaluation({
                     <div className="setup-info-item">
                       <span className="setup-info-label">Turns:</span>
                       <span className="setup-info-value">{turnsUsed}/{caseSetup.maxTurns}</span>
+                    </div>
+                  )}
+                  {mode && (
+                    <div className="setup-info-item">
+                      <span className="setup-info-label">Mode:</span>
+                      <span className="setup-info-value">{mode === 'guided' ? 'Guided' : 'Exam'}</span>
+                    </div>
+                  )}
+                  {mode === 'exam' && hintsUsed !== undefined && (
+                    <div className="setup-info-item">
+                      <span className="setup-info-label">Hints Used:</span>
+                      <span className="setup-info-value">{hintsUsed}</span>
                     </div>
                   )}
                 </div>

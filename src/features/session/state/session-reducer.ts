@@ -52,6 +52,7 @@ export type SessionAction =
   | { type: 'set-streaming-content'; payload: string }
   | { type: 'set-show-evaluation'; payload: boolean }
   | { type: 'set-user-final-answer'; payload: string }
+  | { type: 'increment-hints-used' }
   | { type: 'reset-session' };
 
 export function sessionReducer(state: SessionState, action: SessionAction): SessionState {
@@ -125,6 +126,15 @@ export function sessionReducer(state: SessionState, action: SessionAction): Sess
       return {
         ...state,
         userFinalAnswer: action.payload,
+      };
+    case 'increment-hints-used':
+      if (!state.session) return state;
+      return {
+        ...state,
+        session: {
+          ...state.session,
+          hintsUsed: (state.session.hintsUsed || 0) + 1,
+        },
       };
     case 'reset-session':
       return {
