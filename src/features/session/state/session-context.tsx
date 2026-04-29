@@ -13,6 +13,7 @@ interface SessionActions {
   setInlineCoachEnabled: (value: boolean) => void;
   setShowEvaluation: (value: boolean) => void;
   applyCoachSuggestion: (text: string) => void;
+  revealHint: () => void;
   startSessionWithSetup: (setup: CaseSetup) => Promise<boolean>;
   sendMessage: () => Promise<void>;
   performAssessment: (assessmentType: string, assessmentName: string) => Promise<void>;
@@ -69,6 +70,10 @@ export function SessionProvider({ children }: SessionProviderProps) {
         setInlineCoachEnabled: (value) => dispatch({ type: 'set-inline-coach-enabled', payload: value }),
         setShowEvaluation: (value) => dispatch({ type: 'set-show-evaluation', payload: value }),
         applyCoachSuggestion: (text) => dispatch({ type: 'set-current-message', payload: text }),
+        revealHint: () => {
+          dispatch({ type: 'increment-hints-used' });
+          dispatch({ type: 'set-show-coach', payload: true });
+        },
         startSessionWithSetup: runtime.startSessionWithSetup,
         sendMessage: runtime.sendMessage,
         performAssessment: runtime.performAssessment,

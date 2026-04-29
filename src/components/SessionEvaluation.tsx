@@ -9,6 +9,7 @@ import {
   Difficulty,
   ClinicalSetting,
   EvaluationResponsePayload,
+  TrainingMode,
 } from '../types';
 import { addSessionRecord } from '../utils/progressStorage';
 import { requestCompletionText } from '../shared/llm/client';
@@ -24,6 +25,8 @@ interface SessionEvaluationProps {
   wasCorrect: boolean;
   caseSetup?: CaseSetup;
   turnsUsed?: number;
+  mode?: TrainingMode;
+  hintsUsed?: number;
   onNewSession: () => void;
   onClose: () => void;
   onProgressSaved?: () => void;
@@ -211,9 +214,11 @@ export function SessionEvaluation({
   wasCorrect,
   caseSetup,
   turnsUsed,
+  mode,
+  hintsUsed,
   onNewSession,
   onClose,
-  onProgressSaved
+  onProgressSaved,
 }: SessionEvaluationProps) {
   const [evaluation, setEvaluation] = useState<EvaluationData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -221,10 +226,9 @@ export function SessionEvaluation({
   const [hasSaved, setHasSaved] = useState(false);
 
   const isCouplesTherapy = professionConfig.isCouplesTherapy;
+  const visibleEvaluation = evaluation as EvaluationData;
 
-  const saveSessionProgress = useCallback(() => {
-    if (!evaluation) return;
-
+  const saveSessionProgress = useCallback((evaluationData: EvaluationData) => {
     addSessionRecord({
       profession: professionConfig.id as Profession,
       category: caseSetup?.category || 'Random',
@@ -236,16 +240,32 @@ export function SessionEvaluation({
       diagnosis,
       userAnswer,
       correct: wasCorrect,
-      score: evaluation.overallScore,
-      summary: evaluation.summary,
-      strengths: evaluation.strengths,
-      gaps: evaluation.gaps,
-      safetyFlags: evaluation.safetyFlags
+      score: evaluationData.overallScore,
+      summary: evaluationData.summary,
+      strengths: evaluationData.strengths,
+      gaps: evaluationData.gaps,
+      safetyFlags: evaluationData.safetyFlags,
+      mode,
+      hintsUsed,
     });
 
     setHasSaved(true);
     onProgressSaved?.();
-  }, [caseSetup?.category, caseSetup?.difficulty, caseSetup?.maxTurns, caseSetup?.setting, caseSetup?.timePressureEnabled, diagnosis, evaluation, onProgressSaved, professionConfig.id, turnsUsed, userAnswer, wasCorrect]);
+  }, [
+    caseSetup?.category,
+    caseSetup?.difficulty,
+    caseSetup?.maxTurns,
+    caseSetup?.setting,
+    caseSetup?.timePressureEnabled,
+    diagnosis,
+    onProgressSaved,
+    professionConfig.id,
+    turnsUsed,
+    userAnswer,
+    wasCorrect,
+    mode,
+    hintsUsed,
+  ]);
 
   const generateEvaluation = useCallback(async () => {
     setIsLoading(true);
@@ -296,7 +316,7 @@ export function SessionEvaluation({
 
   useEffect(() => {
     if (evaluation && !hasSaved) {
-      saveSessionProgress();
+      saveSessionProgress(evaluation);
     }
   }, [evaluation, hasSaved, saveSessionProgress]);
 
@@ -336,7 +356,7 @@ export function SessionEvaluation({
                 🔄 Retry
               </button>
             </div>
-          ) : evaluation ? (
+          ) : (
             <>
               {/* Case Setup Info */}
               {caseSetup && (
@@ -359,6 +379,18 @@ export function SessionEvaluation({
                     <div className="setup-info-item">
                       <span className="setup-info-label">Turns:</span>
                       <span className="setup-info-value">{turnsUsed}/{caseSetup.maxTurns}</span>
+                    </div>
+                  )}
+                  {mode && (
+                    <div className="setup-info-item">
+                      <span className="setup-info-label">Mode:</span>
+                      <span className="setup-info-value">{mode === 'guided' ? 'Guided' : 'Exam'}</span>
+                    </div>
+                  )}
+                  {mode === 'exam' && hintsUsed !== undefined && (
+                    <div className="setup-info-item">
+                      <span className="setup-info-label">Hints Used:</span>
+                      <span className="setup-info-value">{hintsUsed}</span>
                     </div>
                   )}
                 </div>
@@ -389,17 +421,17 @@ export function SessionEvaluation({
                   <div 
                     className="score-circle"
                     style={{ 
-                      background: `conic-gradient(${getScoreColor(evaluation.overallScore, 100)} ${evaluation.overallScore * 3.6}deg, var(--bg-elevated) 0deg)` 
+                      background: `conic-gradient(${getScoreColor(visibleEvaluation.overallScore, 100)} ${visibleEvaluation.overallScore * 3.6}deg, var(--bg-elevated) 0deg)` 
                     }}
                   >
                     <div className="score-inner">
-                      <span className="score-number">{evaluation.overallScore}</span>
-                      <span className="score-label">{getOverallGrade(evaluation.overallScore).grade}</span>
+                      <span className="score-number">{visibleEvaluation.overallScore}</span>
+                      <span className="score-label">{getOverallGrade(visibleEvaluation.overallScore).grade}</span>
                     </div>
                   </div>
                   <div className="score-description">
-                    <h3>{getOverallGrade(evaluation.overallScore).label}</h3>
-                    <p>{evaluation.summary}</p>
+                    <h3>{getOverallGrade(visibleEvaluation.overallScore).label}</h3>
+                    <p>{visibleEvaluation.summary}</p>
                   </div>
                 </div>
               </div>
@@ -408,7 +440,7 @@ export function SessionEvaluation({
               <div className="evaluation-breakdown">
                 <h4>Score Breakdown</h4>
                 <div className="breakdown-bars">
-                  {evaluation.scoreBreakdown.map((item, idx) => (
+                  {visibleEvaluation.scoreBreakdown.map((item, idx) => (
                     <div key={idx} className="breakdown-item">
                       <div className="breakdown-label">
                         <span>{item.category}</span>
@@ -429,11 +461,11 @@ export function SessionEvaluation({
               </div>
 
               {/* Strengths */}
-              {evaluation.strengths.length > 0 && (
+              {visibleEvaluation.strengths.length > 0 && (
                 <div className="evaluation-section strengths">
                   <h4>💪 Strengths</h4>
                   <ul>
-                    {evaluation.strengths.map((strength, idx) => (
+                    {visibleEvaluation.strengths.map((strength, idx) => (
                       <li key={idx}>{strength}</li>
                     ))}
                   </ul>
@@ -441,11 +473,11 @@ export function SessionEvaluation({
               )}
 
               {/* Gaps */}
-              {evaluation.gaps.length > 0 && (
+              {visibleEvaluation.gaps.length > 0 && (
                 <div className="evaluation-section gaps">
                   <h4>📝 Areas for Improvement</h4>
                   <ul>
-                    {evaluation.gaps.map((gap, idx) => (
+                    {visibleEvaluation.gaps.map((gap, idx) => (
                       <li key={idx}>{gap}</li>
                     ))}
                   </ul>
@@ -453,11 +485,11 @@ export function SessionEvaluation({
               )}
 
               {/* Safety Flags */}
-              {evaluation.safetyFlags.length > 0 && (
+              {visibleEvaluation.safetyFlags.length > 0 && (
                 <div className="evaluation-section safety">
                   <h4>🚨 Safety Concerns</h4>
                   <ul>
-                    {evaluation.safetyFlags.map((flag, idx) => (
+                    {visibleEvaluation.safetyFlags.map((flag, idx) => (
                       <li key={idx}>{flag}</li>
                     ))}
                   </ul>
@@ -465,11 +497,11 @@ export function SessionEvaluation({
               )}
 
               {/* Suggested Actions */}
-              {evaluation.suggestedActions.length > 0 && (
+              {visibleEvaluation.suggestedActions.length > 0 && (
                 <div className="evaluation-section suggestions">
                   <h4>💡 {isCouplesTherapy ? 'Missed Opportunities' : 'Suggested Questions/Actions'}</h4>
                   <ul>
-                    {evaluation.suggestedActions.map((action, idx) => (
+                    {visibleEvaluation.suggestedActions.map((action, idx) => (
                       <li key={idx}><ReactMarkdown>{action}</ReactMarkdown></li>
                     ))}
                   </ul>
@@ -477,11 +509,11 @@ export function SessionEvaluation({
               )}
 
               {/* Next Session Goals - Couples Therapy Only */}
-              {isCouplesTherapy && evaluation.nextSessionGoals && evaluation.nextSessionGoals.length > 0 && (
+              {isCouplesTherapy && visibleEvaluation.nextSessionGoals && visibleEvaluation.nextSessionGoals.length > 0 && (
                 <div className="evaluation-section next-session">
                   <h4>🎯 Goals for Next Session</h4>
                   <ul>
-                    {evaluation.nextSessionGoals.map((goal, idx) => (
+                    {visibleEvaluation.nextSessionGoals.map((goal, idx) => (
                       <li key={idx}>{goal}</li>
                     ))}
                   </ul>
@@ -495,7 +527,7 @@ export function SessionEvaluation({
                 </div>
               )}
             </>
-          ) : null}
+          )}
         </div>
 
         <div className="evaluation-footer">

@@ -67,11 +67,12 @@ export function AppShell() {
     if (started) {
       appActions.setScreen('session');
     } else {
-      appActions.setScreen(profession ? 'ready' : 'profession-select');
+      appActions.setScreen('ready');
     }
   };
 
   const handleStartRandom = async () => {
+    /* v8 ignore next 3 -- this handler is only passed when both values are present */
     if (!profession || !professionConfig) {
       return;
     }
@@ -87,6 +88,7 @@ export function AppShell() {
       setting: preferences.lastSetting || professionConfig.defaultSetting,
       timePressureEnabled: preferences.lastTimePressure || false,
       maxTurns: preferences.lastMaxTurns || null,
+      mode: 'guided',
       createdAt: Date.now(),
     };
 
@@ -122,6 +124,8 @@ export function AppShell() {
           wasCorrect={sessionState.feedback?.correct ?? false}
           caseSetup={sessionState.session.caseSetup}
           turnsUsed={sessionState.session.turnsUsed}
+          mode={sessionState.session.mode}
+          hintsUsed={sessionState.session.hintsUsed}
           onNewSession={() => {
             sessionActions.setShowEvaluation(false);
             handleOpenCaseSetup();

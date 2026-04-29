@@ -89,7 +89,7 @@ export function useSessionRuntime({
 
       dispatch({ type: 'set-feedback', payload: null });
       dispatch({ type: 'set-show-answer', payload: false });
-      dispatch({ type: 'set-show-coach', payload: false });
+      dispatch({ type: 'set-show-coach', payload: setup.mode === 'guided' });
       dispatch({ type: 'set-show-evaluation', payload: false });
       dispatch({ type: 'set-user-final-answer', payload: '' });
       dispatch({ type: 'set-streaming', payload: false });
@@ -170,6 +170,8 @@ export function useSessionRuntime({
           conversationHistory: initialHistory,
           caseSetup: setup,
           turnsUsed: 0,
+          mode: setup.mode,
+          hintsUsed: setup.mode === 'exam' ? 0 : undefined,
         };
 
         dispatch({ type: 'set-session', payload: nextSession });

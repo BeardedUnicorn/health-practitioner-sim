@@ -1,4 +1,4 @@
-import { ApiConfig, Message, Profession, SuggestionType } from '../../../types';
+import { ApiConfig, Message, Profession, SuggestionType, TrainingMode } from '../../../types';
 import { useCoachContext } from '../state/coach-context';
 import { useCoachSuggestions } from '../hooks/useCoachSuggestions';
 import '../../../components/Coach.css';
@@ -8,6 +8,9 @@ interface CoachPanelProps {
   conversationHistory: Message[];
   apiConfig: ApiConfig;
   onClose: () => void;
+  trainingMode: TrainingMode;
+  hintsUsed: number;
+  onRevealHint: () => void;
 }
 
 const SUGGESTION_TYPE_INFO: Record<SuggestionType, { emoji: string; label: string; color: string }> = {
@@ -17,10 +20,21 @@ const SUGGESTION_TYPE_INFO: Record<SuggestionType, { emoji: string; label: strin
   followup: { emoji: '➡️', label: 'Follow-up', color: 'var(--accent-secondary)' },
 };
 
-export function CoachPanel({ profession, conversationHistory, apiConfig, onClose }: CoachPanelProps) {
+export function CoachPanel({
+  profession,
+  conversationHistory,
+  apiConfig,
+  onClose,
+  trainingMode,
+  hintsUsed,
+  onRevealHint,
+}: CoachPanelProps) {
   const { actions } = useCoachContext();
   const { suggestions, summary, missingAreas, isLoading, error, refresh } = useCoachSuggestions({
     mode: 'panel',
+    enabled: true,
+    trainingMode,
+    hintsUsed,
     profession,
     conversationHistory,
     apiConfig,
@@ -28,11 +42,28 @@ export function CoachPanel({ profession, conversationHistory, apiConfig, onClose
 
   const hasData = suggestions.length > 0 || summary || missingAreas.length > 0;
 
+  const showEmptyState = !hasData && !isLoading && !error;
+
+  const refreshButtonText = () => {
+    if (isLoading) {
+      return (
+        <>
+          <span className="btn-spinner"></span>
+          {hasData ? 'Updating...' : 'Analyzing...'}
+        </>
+      );
+    }
+    if (trainingMode === 'exam') {
+      return '🔄 Get Another Hint';
+    }
+    return '🔄 Refresh';
+  };
+
   return (
     <>
       <div className="side-panel-header">
         <div className="coach-header-left">
-          <h3>🎓 Coach</h3>
+          <h3>{trainingMode === 'exam' ? `🎓 Coach (Hint ${hintsUsed})` : '🎓 Coach'}</h3>
           {isLoading && (
             <span className="coach-header-status">
               <span className="coach-status-dot"></span>
@@ -110,23 +141,32 @@ export function CoachPanel({ profession, conversationHistory, apiConfig, onClose
           </>
         )}
 
-        {!hasData && !isLoading && !error && (
+        {showEmptyState && trainingMode === 'guided' && (
           <div className="coach-empty">
             <p>Start the conversation to receive coaching guidance.</p>
           </div>
         )}
+
+        {showEmptyState && trainingMode === 'exam' && (
+           <div className="coach-empty">
+             <p>Click &quot;Get Another Hint&quot; to receive more suggestions.</p>
+           </div>
+        )}
       </div>
 
       <div className="side-panel-footer">
-        <button onClick={refresh} disabled={isLoading} className="btn-secondary">
-          {isLoading ? (
-            <>
-              <span className="btn-spinner"></span>
-              {hasData ? 'Updating...' : 'Analyzing...'}
-            </>
-          ) : (
-            '🔄 Refresh'
-          )}
+        <button
+          onClick={() => {
+            if (trainingMode === 'exam') {
+              onRevealHint();
+            } else {
+              refresh();
+            }
+          }}
+          disabled={isLoading}
+          className="btn-secondary"
+        >
+          {refreshButtonText()}
         </button>
       </div>
     </>

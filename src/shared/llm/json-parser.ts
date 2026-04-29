@@ -8,13 +8,14 @@ function extractCandidate(content: string): string {
   const normalized = stripJsonCodeFence(content);
 
   const objectMatch = normalized.match(/\{[\s\S]*\}/);
-  if (objectMatch) {
-    return objectMatch[0];
+  const arrayMatch = normalized.match(/\[[\s\S]*\]/);
+
+  if (arrayMatch && (!objectMatch || arrayMatch.index! < objectMatch.index!)) {
+    return arrayMatch[0];
   }
 
-  const arrayMatch = normalized.match(/\[[\s\S]*\]/);
-  if (arrayMatch) {
-    return arrayMatch[0];
+  if (objectMatch) {
+    return objectMatch[0];
   }
 
   return normalized;

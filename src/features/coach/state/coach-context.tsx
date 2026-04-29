@@ -30,7 +30,7 @@ const INITIAL_STATE: CoachState = {
   lastSelectionAt: null,
 };
 
-function coachReducer(state: CoachState, action: CoachAction): CoachState {
+export function coachReducer(state: CoachState, action: CoachAction): CoachState {
   switch (action.type) {
     case 'select':
       return {

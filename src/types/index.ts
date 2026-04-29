@@ -1,5 +1,7 @@
 export type Profession = 'nurse' | 'psychiatrist' | 'psychologist' | 'therapist' | 'doula' | 'pregnancyPartner' | 'couplesTherapist';
 
+export type TrainingMode = 'guided' | 'exam';
+
 export type Difficulty = 'beginner' | 'intermediate' | 'advanced';
 
 export type ClinicalSetting = 'clinic' | 'emergency' | 'telehealth' | 'inpatient' | 'labor_delivery' | 'home' | 'birth_center';
@@ -16,6 +18,7 @@ export interface CaseSetup {
   setting: ClinicalSetting;
   timePressureEnabled: boolean;
   maxTurns: number | null;
+  mode: TrainingMode;
   createdAt: number;
 }
 
@@ -47,6 +50,8 @@ export interface PatientSession {
   conversationHistory: Message[];
   caseSetup?: CaseSetup;
   turnsUsed?: number;
+  mode?: TrainingMode;
+  hintsUsed?: number;
   coupleProfile?: CoupleProfile; // For couples therapy
 }
 
@@ -133,6 +138,8 @@ export interface SessionRecord {
   strengths: string[];
   gaps: string[];
   safetyFlags: string[];
+  mode?: TrainingMode;
+  hintsUsed?: number;
 }
 
 export interface ProfessionStats {

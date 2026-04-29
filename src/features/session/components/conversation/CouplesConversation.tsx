@@ -34,7 +34,7 @@ export function parseCouplesMessage(content: string): ParsedPartnerMessage[] | n
     const currentMatch = matches[index];
     const partner = currentMatch[1].toUpperCase() as 'A' | 'B';
     const name = currentMatch[2]?.trim() || `Partner ${partner}`;
-    const startIndex = (currentMatch.index ?? 0) + currentMatch[0].length;
+    const startIndex = currentMatch.index! + currentMatch[0].length;
     const endIndex = matches[index + 1]?.index || content.length;
     const messageContent = content.slice(startIndex, endIndex).trim();
 
