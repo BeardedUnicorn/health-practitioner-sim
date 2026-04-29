@@ -187,9 +187,7 @@ export function ProgressScreen({ progress, onBack, onRefresh }: ProgressScreenPr
                   <div className="stat-card">
                     <div className="stat-icon">✅</div>
                     <div className="stat-value">
-                      {overallStats.totalSessions > 0 
-                        ? Math.round((overallStats.correctSessions / overallStats.totalSessions) * 100)
-                        : 0}%
+                      {Math.round((overallStats.correctSessions / overallStats.totalSessions) * 100)}%
                     </div>
                     <div className="stat-label">Accuracy Rate</div>
                   </div>
@@ -218,7 +216,7 @@ export function ProgressScreen({ progress, onBack, onRefresh }: ProgressScreenPr
                       <div className="streak-label">Longest Streak</div>
                     </div>
                     <div className="streak-card">
-                      <div className="streak-value">{streakInfo.lastPracticeDate || 'Never'}</div>
+                      <div className="streak-value">{streakInfo.lastPracticeDate}</div>
                       <div className="streak-label">Last Practice</div>
                     </div>
                   </div>

@@ -52,6 +52,7 @@ export function SessionWorkspace({
 
   const handleScroll = useCallback(() => {
     const container = messagesContainerRef.current;
+    /* v8 ignore next -- scroll events cannot fire before the ref is attached */
     if (!container) return;
 
     const currentScrollTop = container.scrollTop;

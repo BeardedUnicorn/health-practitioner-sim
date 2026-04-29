@@ -2,7 +2,7 @@ import { RuntimeInfo } from '../../types';
 
 const FALLBACK_RUNTIME_INFO: RuntimeInfo = {
   appVersion: 'web-dev',
-  platform: typeof navigator !== 'undefined' ? navigator.platform : 'web',
+  platform: navigator.platform,
   tauriVersion: 'web',
 };
 

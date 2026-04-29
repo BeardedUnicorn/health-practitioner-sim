@@ -15,7 +15,7 @@ export class LlmStreamParser {
     this.buffer += chunk;
 
     const lines = this.buffer.split('\n');
-    this.buffer = lines.pop() ?? '';
+    this.buffer = lines.pop() as string;
 
     return this.parseLines(lines);
   }

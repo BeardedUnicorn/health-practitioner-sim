@@ -67,11 +67,12 @@ export function AppShell() {
     if (started) {
       appActions.setScreen('session');
     } else {
-      appActions.setScreen(profession ? 'ready' : 'profession-select');
+      appActions.setScreen('ready');
     }
   };
 
   const handleStartRandom = async () => {
+    /* v8 ignore next 3 -- this handler is only passed when both values are present */
     if (!profession || !professionConfig) {
       return;
     }

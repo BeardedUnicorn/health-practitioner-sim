@@ -22,7 +22,9 @@ describe('LlmStreamParser', () => {
     const parser = new LlmStreamParser();
 
     const events = parser.pushChunk(
+      ': keep-alive\n' +
       'data: {"choices":[{"delta":{"content":"Valid"}}]}\n' +
+        'data: {"choices":[{"delta":{}}]}\n' +
         'data: not-json\n' +
         'data: {"choices":[{"delta":{"content":" chunk"}}]}\n',
     );
@@ -31,5 +33,15 @@ describe('LlmStreamParser', () => {
       { type: 'delta', content: 'Valid' },
       { type: 'delta', content: ' chunk' },
     ]);
+  });
+
+  it('flushes partial data and drops empty buffers', () => {
+    const parser = new LlmStreamParser();
+
+    expect(parser.pushChunk('   ')).toEqual([]);
+    expect(parser.flush()).toEqual([]);
+
+    expect(parser.pushChunk('data: {"choices":[{"delta":{"content":"Partial"}}]}')).toEqual([]);
+    expect(parser.flush()).toEqual([{ type: 'delta', content: 'Partial' }]);
   });
 });

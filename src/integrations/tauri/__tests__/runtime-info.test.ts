@@ -36,4 +36,16 @@ describe('getRuntimeInfo', () => {
 
     delete (window as Window & { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__;
   });
+
+  it('falls back when Tauri invoke fails', async () => {
+    (window as Window & { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__ = {};
+    invokeMock.mockRejectedValueOnce(new Error('not available'));
+
+    const info = await getRuntimeInfo();
+
+    expect(info.tauriVersion).toBe('web');
+    expect(info.appVersion).toBe('web-dev');
+
+    delete (window as Window & { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__;
+  });
 });

@@ -27,6 +27,7 @@ export function CoachPanel({
   onClose,
   trainingMode,
   hintsUsed,
+  onRevealHint,
 }: CoachPanelProps) {
   const { actions } = useCoachContext();
   const { suggestions, summary, missingAreas, isLoading, error, refresh } = useCoachSuggestions({
@@ -148,7 +149,7 @@ export function CoachPanel({
 
         {showEmptyState && trainingMode === 'exam' && (
            <div className="coach-empty">
-             <p>Click "Get Another Hint" to receive more suggestions.</p>
+             <p>Click &quot;Get Another Hint&quot; to receive more suggestions.</p>
            </div>
         )}
       </div>
